@@ -1,3 +1,4 @@
+
 /* General Styling */
 body {
   font-family: Arial, sans-serif;
@@ -210,4 +211,29 @@ button:hover {
   font-weight: bold;
   color: #000;
   z-index: 1;
+}
+
+.danger-button {
+  padding: 10px;
+  font-size: 16px;
+  color: white;
+  border: none;
+  width: 100%;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.danger-button:hover {
+  opacity: 0.9;
+}
+.filter-bar {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.filter-bar select {
+  padding: 6px 10px;
+  font-size: 14px;
 }

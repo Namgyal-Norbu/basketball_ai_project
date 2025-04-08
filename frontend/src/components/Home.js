@@ -3,15 +3,49 @@ import { useUser } from "./UserContext";
 import { db, doc, getDoc, collection, query, where, getDocs } from "../firebaseConfig";
 import "./styles.css";
 
-function HomePage() {
+function Home() {
   const user = useUser();
   const [level, setLevel] = useState(1);
   const [xp, setXp] = useState(0);
   const [streak, setStreak] = useState(0);
   const [badges, setBadges] = useState([]);
-  const [rank, setRank] = useState(null);
+
 
   const xpToNextLevel = 500;
+
+  const handleDownloadData = async () => {
+    try {
+      const res = await fetch(`http://127.0.0.1:5000/export_profile?name=${user.displayName.toLowerCase()}`);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${user.displayName.toLowerCase()}_data.json`;
+      a.click();
+    } catch (err) {
+      alert("⚠️ Failed to download data");
+    }
+  };
+  
+  
+  const handleDeleteProfile = async () => {
+    const confirmed = window.confirm("Are you sure you want to permanently delete your profile?");
+    if (!confirmed) return;
+  
+    try {
+      const res = await fetch("http://127.0.0.1:5000/delete_profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: user.displayName.toLowerCase() }),
+      });
+      const data = await res.json();
+      alert(data.message || "Profile deleted.");
+      window.location.reload();
+    } catch (err) {
+      alert("❌ Error deleting profile");
+    }
+  };
+  
 
   useEffect(() => {
     if (!user) return;
@@ -69,7 +103,7 @@ function HomePage() {
     <div className="container">
       <h2>🏀 Welcome Back, {user.displayName}!</h2>
 
-      {/* Level & XP Bar */}
+      
       <div className="card xp-container">
         <h3>🎯 Level {level}</h3>
         <div className="xp-bar">
@@ -78,7 +112,7 @@ function HomePage() {
         </div>
       </div>
 
-      {/* Daily Streak */}
+   
       <div className="card">
         <h3>🔥 Daily Streak</h3>
         <p>{streak} days in a row</p>
@@ -97,9 +131,25 @@ function HomePage() {
           <p>No badges yet</p>
         )}
       </div>
-  
+      <div className="card">
+  <h3>🔐 Privacy Controls</h3>
+  <button
+    className="danger-button"
+    onClick={handleDownloadData}
+    style={{ backgroundColor: "#007bff", marginBottom: "10px" }}
+  >
+    📥 Download My Data
+  </button>
+  <button
+    className="danger-button"
+    onClick={handleDeleteProfile}
+    style={{ backgroundColor: "#dc3545" }}
+  >
+    ❌ Delete My Profile
+  </button>
+</div>
     </div>
   );
 }
 
-export default HomePage;
+export default Home;

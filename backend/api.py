@@ -4,7 +4,8 @@ from database import get_players, add_new_player, log_workout
 from ai_engine import get_ai_recommendations
 import firebase_admin
 from firebase_admin import credentials, firestore
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
+from dateutil import parser
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -22,11 +23,11 @@ db = firestore.client()
 
 def send_email_reminder(to_email, subject, player_name):
     from_email = "tenzinnamgyalnorbu@gmail.com"
-    password = "shmm bhph uspm yfzf"  # App password
+    password = "fujx qbvt ppya nmsd"
 
     # 🔍 Fetch today's drills
     today_day = datetime.utcnow().strftime("%A")
-    player_doc = db.collection("players").document(player_name.lower()).get()
+    player_doc = db.collection("players").document(to_email).get()
     if not player_doc.exists:
         return False
 
@@ -96,8 +97,8 @@ def generate_14_day_routine(drills):
         routine[f"Day {i+1} - {weekdays[i % 7]}"] = drills
     return routine
 
-def check_skill_change(name, today_day_name):
-    player_ref = db.collection("players").document(name)
+def check_skill_change(email, today_day_name):
+    player_ref = db.collection("players").document(email)
     player_data = player_ref.get().to_dict()
 
     if not player_data:
@@ -117,7 +118,7 @@ def check_skill_change(name, today_day_name):
 
     for i in range(3):
         check_day = weekdays[(today_index - i) % 7]
-        doc_id = f"{name}_{check_day}"
+        doc_id = f"{email}_{check_day}"
         result_doc = db.collection("dailyResults").document(doc_id).get()
         if result_doc.exists:
             try:
@@ -185,7 +186,7 @@ def generate_drill_test():
     if not name or not position or not email:
         return jsonify({"error": "Missing name, position, or email"}), 400
 
-    player_ref = db.collection("players").document(name.lower())
+    player_ref = db.collection("players").document(email)
     player_doc = player_ref.get()
 
     drills_by_position = {
@@ -215,11 +216,11 @@ def generate_drill_test():
 
 @app.route("/player_status")
 def player_status():
-    name = request.args.get("name")
-    if not name:
+    email = request.args.get("email")
+    if not email:
         return jsonify({"error": "Missing name"}), 400
 
-    doc = db.collection("players").document(name).get()
+    doc = db.collection("players").document(email).get()
     if not doc.exists:
         return jsonify({"test_completed": False})
 
@@ -233,6 +234,7 @@ def player_status():
 @app.route("/submit_test_results", methods=["POST"])
 def submit_test_results():
     data = request.json
+    email = data.get("email")
     name = data.get("name")
     results = data.get("results")  
     show_on_leaderboard = data.get("show_on_leaderboard", False)
@@ -240,7 +242,7 @@ def submit_test_results():
     if not name or not results:
         return jsonify({"error": "Missing name or results"}), 400
 
-    player_ref = db.collection("players").document(name)
+    player_ref = db.collection("players").document(email)
     doc = player_ref.get()
     if not doc.exists:
         return jsonify({"error": "Player not found"}), 404
@@ -357,7 +359,7 @@ def submit_drill_results():
         routine[f"Day {i+1} - {day_name}"] = base_drills
 
     # 4. Save player profile + routine
-    player_ref = db.collection("players").document(name)
+    player_ref = db.collection("players").document(email)
     player_ref.set({
         "name": name,
         "email": email,
@@ -379,7 +381,7 @@ def submit_drill_results():
     })
 
     # 6. Adaptive check: skill regression
-    regression_msg = check_regression_and_update_skill(name)
+    regression_msg = check_regression_and_update_skill(email)
 
     return jsonify({
         "message": "Drill results submitted and routine generated.",
@@ -390,8 +392,8 @@ def submit_drill_results():
 
 
 # ✅ Regression Logic
-def check_regression_and_update_skill(name):
-    player_ref = db.collection("players").document(name)
+def check_regression_and_update_skill(email):
+    player_ref = db.collection("players").document(email)
     player_data = player_ref.get().to_dict()
 
     if not player_data:
@@ -500,7 +502,7 @@ def submit_daily_results():
         return jsonify({"error": "Missing fields"}), 400
 
     today = mock_day if mock_day else datetime.today().strftime("%A")
-    doc_id = f"{name}_{today}"
+    doc_id = f"{email}_{today}"
     result_ref = db.collection("dailyResults").document(doc_id)
 
     # 🚫 Prevent duplicate submission
@@ -524,7 +526,7 @@ def submit_daily_results():
     })
 
     # 🔄 Update player profile
-    player_ref = db.collection("players").document(name)
+    player_ref = db.collection("players").document(email)
     player_doc = player_ref.get()
 
     # 🛡️ Default message
@@ -629,38 +631,154 @@ def log_training():
 
 @app.route("/leaderboard", methods=["GET"])
 def leaderboard():
-    results_ref = db.collection("dailyResults").stream()
+    players_ref = db.collection("players")
+    results_ref = db.collection("dailyResults")
 
-    performance = {}
-    consistency = {}
+    players = []
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())  # Monday
 
-    for doc in results_ref:
+    top_today = None
+    top_today_xp = 0
+
+    top_week = None
+    top_week_score = 0
+
+    for doc in players_ref.stream():
         data = doc.to_dict()
-        name = data.get("name")
-        day = data.get("day")
-        drills = data.get("results", {})
-
-        # Check if player has opted in
-        player_ref = db.collection("players").document(name).get()
-        if not player_ref.exists or not player_ref.to_dict().get("show_on_leaderboard", False):
+        if not data.get("show_on_leaderboard", False):
             continue
 
-        performance.setdefault(name, []).extend([score for score in drills.values() if isinstance(score, (int, float))])
-        consistency.setdefault(name, set()).add(day)
+        name = data.get("name", "Unknown")
+        xp = data.get("xp", 0)
+        level = (xp // 500) + 1
+        results = data.get("results", [])
+        average_score = sum(map(float, results)) / len(results) if results else 0
 
-    leaderboard_data = [
-        {
+        # Count unique days active
+        day_query = results_ref.where("email", "==", data.get("email"))
+        day_docs = day_query.stream()
+        day_set = set()
+        weekly_scores = []
+
+        for d in day_docs:
+            result_data = d.to_dict()
+            day_set.add(result_data.get("day"))
+
+            # Parse timestamp safely
+            submitted_date = result_data.get("timestamp")
+            if submitted_date:
+                ts_date = parser.isoparse(submitted_date).date()
+                if week_start <= ts_date <= today:
+                    drill_scores = result_data.get("results", {}).values()
+                    numeric_scores = list(map(int, drill_scores))
+                    avg = sum(numeric_scores) / len(numeric_scores)
+                    weekly_scores.append(avg)
+
+                    # Top performer today
+                    if ts_date == today:
+                        if xp > top_today_xp:
+                            top_today = {"name": name, "xp": xp}
+                            top_today_xp = xp
+
+        max_week_score = max(weekly_scores) if weekly_scores else 0
+        if max_week_score > top_week_score:
+            top_week = {"name": name, "xp": xp}
+            top_week_score = max_week_score
+
+        players.append({
             "name": name,
-            "average_score": round(sum(scores) / len(scores), 2),
-            "days_active": len(consistency[name])
-        }
-        for name, scores in performance.items() if scores
-    ]
+            "average_score": average_score,
+            "days_active": len(day_set),
+            "xp": xp,
+            "level": level,
+            "top_week_score": max_week_score
+        })
 
-    leaderboard_data.sort(key=lambda x: (x["average_score"], x["days_active"]), reverse=True)
-    return jsonify(leaderboard_data), 200
+    # Sort leaderboard
+    players.sort(key=lambda x: (-x["top_week_score"], -x["xp"]))
+
+    return jsonify({
+        "players": players,
+        "top_performer_today": top_today,
+        "top_performer_week": top_week
+    })
+
+@app.route("/delete_profile", methods=["POST"])
+def delete_profile():
+    data = request.json
+    name = data.get("name")
+    email = data.get("email")
+
+    if not email:
+        return jsonify({"error": "Missing player name"}), 400
+
+    try:
+        name = name.lower()  # 💥 Normalize casing
+        print(f"🔍 Deleting player: {name}")
+
+        email = data.get("email")
+        db.collection("players").document(email).delete()
+
+        results = db.collection("dailyResults").where("email", "==", email).stream()
+        for doc in results:
+            print(f"🗑️ Deleting result doc: {doc.id}")
+            doc.reference.delete()
+
+        return jsonify({"message": f"✅ Profile for '{name}' deleted successfully."}), 200
+
+    except Exception as e:
+        print(f"❌ Error during deletion: {e}")
+        return jsonify({"error": f"Failed to delete profile: {str(e)}"}), 500
 
 
+@app.route("/export_profile", methods=["GET"])
+def export_profile():
+    
+    email = request.args.get("email")
+    if not email:
+        return jsonify({"error": "Missing player name"}), 400
+
+    try:
+        doc = db.collection("players").document(email).get()
+        profile = doc.to_dict()
+        results = db.collection("dailyResults").where("email", "==", email).stream()
+        result_data = [doc.to_dict() for doc in results]
+
+        return jsonify({
+            "profile": profile,
+            "daily_results": result_data
+        }), 200
+    except Exception as e:
+        return jsonify({"error": f"Export failed: {str(e)}"}), 500
+    
+@app.route('/export_player_data')
+def export_player_data():
+    name = request.args.get('name')
+    email = request.args.get("email")
+    
+    if not name:
+        return jsonify({"error": "Missing player name"}), 400
+
+    player_ref = db.collection("players").document(email)
+    player_doc = player_ref.get()
+
+    if not player_doc.exists:
+        return jsonify({"error": "Player not found"}), 404
+
+    data = player_doc.to_dict()
+
+    # Include daily results
+    daily_results = db.collection("dailyResults").where("email", "==", data.get("email")).stream()
+    data["daily_results"] = [doc.to_dict() for doc in daily_results]
+
+    # Serve as a downloadable JSON file
+    json_data = json.dumps(data, indent=2)
+    return Response(
+        json_data,
+        mimetype='application/json',
+        headers={"Content-Disposition": f"attachment;filename={name}_data.json"}
+    )
 
 
 # --- ASSESS NEW PLAYER & SAVE TO DB ---

@@ -36,6 +36,7 @@ function Navbar() {
         <a href="/submit-drills">Submit Drills</a>
         <a href="/leaderboard">Leaderboard</a>
         <a href="/progress">Progress</a>
+        <a href ="/how-to-use">How to Use</a>
         
       </div>
 

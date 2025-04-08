@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Line } from "react-chartjs-2";
+
 import { collection, query, where, getDocs } from "firebase/firestore";
+
 import { db } from "../firebaseConfig";
 import { useUser } from "./UserContext";
 

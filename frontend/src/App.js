@@ -10,11 +10,12 @@ import DailyRoutine from "./components/DailyRoutine";
 import { useUser } from "./components/UserContext"; 
 import Leaderboard from "./components/Leaderboard";
 import ProgressChart from "./components/ProgressChart";
+import HowToUse from "./components/HowToUse";
 
 import "./components/styles.css";
 
 function App() {
-  const user = useUser(); // ✅ Access logged-in user
+  const user = useUser(); 
 
   return (
     <Router>
@@ -28,6 +29,7 @@ function App() {
         <Route path="/routine" element={<DailyRoutine user={user} />} />     
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/progress" element={<ProgressChart />} /> 
+        <Route path="/how-to-use" element={<HowToUse />} />
       </Routes>
     </Router>
   );
