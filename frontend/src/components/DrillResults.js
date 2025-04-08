@@ -1,47 +1,49 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { db, doc, getDoc } from "../firebaseConfig";
+import { useUser } from "./UserContext";
 import "./styles.css";
 
 function DailyDrill() {
-  const [name, setName] = useState("");
+  const user = useUser();
   const [day] = useState(new Date().toLocaleDateString("en-US", { weekday: "long" }));
   const [dailyDrills, setDailyDrills] = useState([]);
   const [message, setMessage] = useState("");
 
-  const searchDailyDrills = async () => {
-    if (!name) {
-      setMessage("Please enter a player name.");
-      return;
-    }
+  useEffect(() => {
+    const fetchDailyDrills = async () => {
+      if (!user) return;
 
-    try {
-      const ref = doc(db, "players", name);
-      const snap = await getDoc(ref);
+      try {
+        const ref = doc(db, "players", user.email);
+        const snap = await getDoc(ref);
 
-      if (snap.exists()) {
-        const data = snap.data();
-        const routine = data.routine || {};
-        const todayDrills = routine[day] || routine[`Day 1 (${day})`] || [];
+        if (snap.exists()) {
+          const data = snap.data();
+          const routine = data.routine || {};
+          const todayDrills = routine[day] || [];
 
-        setDailyDrills(todayDrills);
-        setMessage(todayDrills.length > 0 ? "" : "No drills assigned for today.");
-      } else {
-        setDailyDrills([]);
-        setMessage("Player not found.");
+          setDailyDrills(todayDrills);
+          setMessage(todayDrills.length > 0 ? "" : "No drills assigned for today.");
+        } else {
+          setDailyDrills([]);
+          setMessage("Player not found.");
+        }
+      } catch (err) {
+        console.error("Error fetching daily drills:", err);
+        setMessage("Failed to fetch daily drills.");
       }
-    } catch (err) {
-      console.error("Error fetching daily drills:", err);
-      setMessage("Failed to fetch daily drills.");
-    }
-  };
+    };
+
+    fetchDailyDrills();
+  }, [user, day]);
+
+  if (!user) {
+    return <p>🔒 Please log in to view your daily drills.</p>;
+  }
 
   return (
     <div className="container">
-      <h2>📅 Daily Drill (Today: {day})</h2>
-
-      <label>Player Name:</label>
-      <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
-      <button onClick={searchDailyDrills}>Get Today's Routine</button>
+      <h2>📅 Your Drills for {day}</h2>
 
       {dailyDrills.length > 0 && (
         <ul>

@@ -12,6 +12,9 @@ from email.mime.multipart import MIMEMultipart
 import schedule
 import time
 import threading
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 
 # Only initialize Firebase once
@@ -22,8 +25,8 @@ if not firebase_admin._apps:
 db = firestore.client()
 
 def send_email_reminder(to_email, subject, player_name):
-    from_email = "tenzinnamgyalnorbu@gmail.com"
-    password = "fujx qbvt ppya nmsd"
+    from_email = os.getenv("GMAIL_USER")
+    password = os.getenv("GMAIL_PASS")
 
     # 🔍 Fetch today's drills
     today_day = datetime.utcnow().strftime("%A")
@@ -238,6 +241,7 @@ def submit_test_results():
     name = data.get("name")
     results = data.get("results")  
     show_on_leaderboard = data.get("show_on_leaderboard", False)
+    wants_email_reminders = data.get("wants_email_reminders", False)
 
     if not name or not results:
         return jsonify({"error": "Missing name or results"}), 400
@@ -299,7 +303,8 @@ def submit_test_results():
         "skill_level": skill,
         "routine": full_routine,
         "test_completed": True,
-        "show_on_leaderboard": show_on_leaderboard
+        "show_on_leaderboard": show_on_leaderboard,
+        "wants_email_reminders": wants_email_reminders
     })
 
     return jsonify({
@@ -391,7 +396,7 @@ def submit_drill_results():
     }), 200
 
 
-# ✅ Regression Logic
+#  Regression Logic
 def check_regression_and_update_skill(email):
     player_ref = db.collection("players").document(email)
     player_data = player_ref.get().to_dict()
@@ -424,7 +429,7 @@ def check_regression_and_update_skill(email):
 
     for i in range(3):
         check_day = (today - timedelta(days=i)).strftime("%A")
-        doc_id = f"{name}_{check_day}"
+        doc_id = f"{email}_{check_day}"
         result_doc = db.collection("dailyResults").document(doc_id).get()
         if result_doc.exists:
             try:
@@ -505,17 +510,17 @@ def submit_daily_results():
     doc_id = f"{email}_{today}"
     result_ref = db.collection("dailyResults").document(doc_id)
 
-    # 🚫 Prevent duplicate submission
+    # Prevent duplicate submission
     if result_ref.get().exists:
         return jsonify({
             "error": f"🚫 You've already submitted results for {today}."
         }), 409  # 409 Conflict
 
-    # ✅ XP calculation
+    # XP calculation
     total_score = sum(int(score) for score in results.values() if str(score).isdigit())
     xp_gained = total_score * 5
 
-    # 🔄 Save daily result
+    # Save daily result
     result_ref.set({
         "name": name,
         "email": email,
@@ -525,11 +530,11 @@ def submit_daily_results():
         "timestamp": datetime.utcnow().isoformat()
     })
 
-    # 🔄 Update player profile
+    # Update player profile
     player_ref = db.collection("players").document(email)
     player_doc = player_ref.get()
 
-    # 🛡️ Default message
+    # Default message
     skill_msg = "✅ No skill level check (new player)."
 
     if player_doc.exists:
@@ -565,15 +570,16 @@ def submit_daily_results():
         base_drills = drills_map.get(position, {}).get(skill_level, ["General Drills"])
         routine = {f"Day {i+1} - {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][i % 7]}": base_drills for i in range(14)}
 
-        # 🔄 Save updates
+        # Save updates
         player_ref.update({
             "xp": current_xp + xp_gained,
             "results": new_results,
             "routine": routine
         })
 
-        # ✅ Skill check
-        skill_msg = check_skill_change(name, today)
+        # Skill check
+        skill_msg = check_skill_change(email, today)
+
 
     else:
         # First-time player
@@ -714,7 +720,7 @@ def delete_profile():
         return jsonify({"error": "Missing player name"}), 400
 
     try:
-        name = name.lower()  # 💥 Normalize casing
+        name = name.lower()  # Normalize casing
         print(f"🔍 Deleting player: {name}")
 
         email = data.get("email")
@@ -803,14 +809,14 @@ def send_daily_reminders():
         data = player.to_dict()
         email = data.get("email")
         name = data.get("name")
-        if email and name:
+        if email and name and data.get("wants_email_reminders", False):
             subject = "📬 Your Daily Basketball Drill Routine"
             send_email_reminder(email, subject, name)
 
-# 🔁 Schedule to run at 8 AM daily
+# Schedule to run at 8 AM daily
 schedule.every().day.at("08:00").do(send_daily_reminders)
 
-# 🧵 Background thread to keep schedule running
+# Background thread to keep schedule running
 def run_scheduler():
     while True:
         schedule.run_pending()

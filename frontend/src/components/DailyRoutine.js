@@ -1,43 +1,44 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useUser } from "./UserContext"; // ✅ import logged-in user
 import { db, doc, getDoc } from "../firebaseConfig";
 
 function DailyRoutine() {
-  const [name, setName] = useState("");
+  const user = useUser();
   const [routine, setRoutine] = useState(null);
   const [message, setMessage] = useState("");
 
-  const fetchRoutine = async () => {
-    if (!name) return setMessage("Enter a player name.");
+  useEffect(() => {
+    const fetchRoutine = async () => {
+      if (!user) return;
 
-    try {
-      const playerRef = doc(db, "players", name);
-      const playerSnap = await getDoc(playerRef);
+      try {
+        const playerRef = doc(db, "players", user.email);
+        const playerSnap = await getDoc(playerRef);
 
-      if (playerSnap.exists()) {
-        const data = playerSnap.data();
-        setRoutine(data.routine || {});
-        setMessage("");
-      } else {
-        setMessage("Player not found.");
-        setRoutine(null);
+        if (playerSnap.exists()) {
+          const data = playerSnap.data();
+          setRoutine(data.routine || {});
+          setMessage("");
+        } else {
+          setMessage("Player not found.");
+          setRoutine(null);
+        }
+      } catch (err) {
+        console.error("Error fetching routine:", err);
+        setMessage("Error fetching routine.");
       }
-    } catch (err) {
-      console.error("Error fetching routine:", err);
-      setMessage("Error fetching routine.");
-    }
-  };
+    };
+
+    fetchRoutine();
+  }, [user]);
+
+  if (!user) {
+    return <p>🔒 Please log in to view your daily routine.</p>;
+  }
 
   return (
     <div className="container">
-      <h2>🏀 View 14-Day Drill Routine</h2>
-      <input
-        type="text"
-        placeholder="Enter player name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <button onClick={fetchRoutine}>Fetch Routine</button>
-
+      <h2>🏀 Your 14-Day Drill Routine</h2>
       {message && <p>{message}</p>}
 
       {routine && (

@@ -15,7 +15,7 @@ function Home() {
 
   const handleDownloadData = async () => {
     try {
-      const res = await fetch(`http://127.0.0.1:5000/export_profile?name=${user.displayName.toLowerCase()}`);
+      const res = await fetch(`http://127.0.0.1:5000/export_profile?email=${user.email}`)
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -36,7 +36,7 @@ function Home() {
       const res = await fetch("http://127.0.0.1:5000/delete_profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: user.displayName.toLowerCase() }),
+        body: JSON.stringify({ name: user.displayName, email: user.email }),
       });
       const data = await res.json();
       alert(data.message || "Profile deleted.");
@@ -50,7 +50,7 @@ function Home() {
   useEffect(() => {
     if (!user) return;
 
-    const playerId = user.displayName.toLowerCase();
+    const playerId = user.email;
 
     const fetchPlayerStats = async () => {
       const playerRef = doc(db, "players", playerId);

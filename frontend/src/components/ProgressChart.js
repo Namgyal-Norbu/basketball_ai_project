@@ -6,7 +6,7 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 import { useUser } from "./UserContext";
 
-// ✅ Register Chart.js components
+
 import {
   Chart as ChartJS,
   LineElement,

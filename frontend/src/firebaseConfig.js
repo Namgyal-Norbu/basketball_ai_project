@@ -30,7 +30,18 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
-// ✅ Export initialized modules and utils
+export const login = async () => {
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+    console.log("✅ Signed in:", user.displayName, user.email);
+    return user;
+  } catch (error) {
+    console.error("❌ Login failed:", error.message);
+    return null;
+  }
+};
+
 export {
   db,
   auth,

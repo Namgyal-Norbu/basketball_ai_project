@@ -9,8 +9,9 @@ function SubmitDrill() {
   const [testDrills, setTestDrills] = useState([]);
   const [results, setResults] = useState({});
   const [message, setMessage] = useState("");
-  const [hasCompletedTest, setHasCompletedTest] = useState(false); 
+  const [hasCompletedTest, setHasCompletedTest] = useState(false);
   const [showOnLeaderboard, setShowOnLeaderboard] = useState(true);
+  const [wantsEmailReminders, setWantsEmailReminders] = useState(true); // ✅ New state
 
   const name = user?.displayName?.toLowerCase();
 
@@ -20,10 +21,9 @@ function SubmitDrill() {
       return;
     }
 
-    // 🔍 Check if test already completed
     const checkTestStatus = async () => {
       try {
-        const res = await fetch(`http://127.0.0.1:5000/player_status?name=${name}`);
+        const res = await fetch(`http://127.0.0.1:5000/player_status?email=${user.email}`);
         const data = await res.json();
         if (data.test_completed) {
           setHasCompletedTest(true);
@@ -47,12 +47,11 @@ function SubmitDrill() {
       const res = await fetch("http://127.0.0.1:5000/generate_drill_test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          name, 
+        body: JSON.stringify({
+          name,
           position,
-          email: user.email 
+          email: user.email
         }),
-        
       });
 
       const data = await res.json();
@@ -95,6 +94,7 @@ function SubmitDrill() {
           position,
           results: formattedResults,
           show_on_leaderboard: showOnLeaderboard,
+          wants_email_reminders: wantsEmailReminders // ✅ Send to backend
         }),
       });
 
@@ -114,12 +114,9 @@ function SubmitDrill() {
       setMessage("Failed to submit test results.");
     }
   };
-  
 
   return (
     <div className="container">
-    
-
       <h2>🏀 Submit Drill Test</h2>
 
       {user ? (
@@ -163,20 +160,30 @@ function SubmitDrill() {
                       />
                     </div>
                   ))}
+
                   <div className="checkbox-wrapper">
-                  <input
-                    type="checkbox"
-                    id="showOnLeaderboard"
-                    checked={showOnLeaderboard}
-                    onChange={() => setShowOnLeaderboard(!showOnLeaderboard)}
-                  />
-                  <label htmlFor="showOnLeaderboard">Show my stats on the public leaderboard</label>
-                </div>
+                    <input
+                      type="checkbox"
+                      id="showOnLeaderboard"
+                      checked={showOnLeaderboard}
+                      onChange={() => setShowOnLeaderboard(!showOnLeaderboard)}
+                    />
+                    <label htmlFor="showOnLeaderboard">Show my stats on the public leaderboard</label>
+                  </div>
+
+                  <div className="checkbox-wrapper">
+                    <input
+                      type="checkbox"
+                      id="wantsEmailReminders"
+                      checked={wantsEmailReminders}
+                      onChange={() => setWantsEmailReminders(!wantsEmailReminders)}
+                    />
+                    <label htmlFor="wantsEmailReminders">Send me daily email reminders for drills</label>
+                  </div>
 
                   <button onClick={handleSubmit}>✅ Submit Test Results</button>
                 </div>
               )}
-              
             </>
           )}
         </>

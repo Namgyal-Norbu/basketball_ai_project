@@ -6,7 +6,7 @@ function Leaderboard() {
   const [topToday, setTopToday] = useState(null);
   const [topWeek, setTopWeek] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [category, setCategory] = useState("xp"); // default: sort by XP
+  const [category, setCategory] = useState("xp"); 
 
   useEffect(() => {
     fetch("http://127.0.0.1:5000/leaderboard")
