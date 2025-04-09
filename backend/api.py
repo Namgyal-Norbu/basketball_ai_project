@@ -1,3 +1,4 @@
+import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from database import get_players, add_new_player, log_workout
@@ -14,6 +15,12 @@ import time
 import threading
 import os
 from dotenv import load_dotenv
+import openai
+openai.api_key = os.getenv("OPENAI_API_KEY")
+from nba_api.stats.static import players
+from nba_api.stats.endpoints import playergamelog
+
+
 load_dotenv()
 
 
@@ -92,6 +99,67 @@ def get_drills_map():
             "Advanced": ["Advanced Post Moves", "Shot Blocking", "Pick & Roll Defense"]
         }
     }
+
+def get_recent_stats(player_name):
+    player_dict = players.find_players_by_full_name(player_name)
+    if not player_dict:
+        return "❌ Player not found."
+
+    player_id = player_dict[0]['id']
+
+    gamelog = playergamelog.PlayerGameLog(
+        player_id=player_id,
+        season='2023-24',
+        season_type_all_star='Regular Season'
+    )
+    df = gamelog.get_data_frames()[0]
+
+    if df.empty:
+        return "❌ No games found."
+
+    latest_game = df.iloc[0]
+    return f"{player_name.title()} scored {latest_game['PTS']} points, with {latest_game['REB']} rebounds and {latest_game['AST']} assists on {latest_game['GAME_DATE']}."
+# backend/api.py
+import requests  # ✅ Required for the API call
+
+@app.route("/nba_stats", methods=["POST"])
+def nba_stats():
+    try:
+        data = request.get_json()
+        player_name = data.get("player")
+        print(f"🔍 Searching for player: {player_name}")
+
+        search_url = f"https://www.balldontlie.io/api/v1/players?search={player_name}"
+        response = requests.get(search_url)
+        
+        if response.status_code != 200:
+            print("❌ Failed to fetch players")
+            return jsonify({"error": "❌ Error fetching stats. Try again soon."}), 500
+
+        players = response.json().get("data", [])
+        if not players:
+            return jsonify({"error": "❌ Player not found."}), 404
+
+        player_id = players[0]["id"]
+        stats_url = f"https://www.balldontlie.io/api/v1/season_averages?season=2023&player_ids[]={player_id}"
+        stats_response = requests.get(stats_url)
+        stats = stats_response.json().get("data", [])
+
+        if not stats:
+            return jsonify({"error": "⚠️ No stats available for this season."}), 404
+
+        player_stats = stats[0]
+        return jsonify({
+            "response": f"📊 {player_name.title()} - PPG: {player_stats['pts']}, APG: {player_stats['ast']}, RPG: {player_stats['reb']}"
+        })
+
+    except Exception as e:
+        print(f"❌ GPT Error (stats): {e}")
+        return jsonify({"error": "⚠️ Error fetching stats. Try again soon."}), 500
+
+  
+
+
 
 def generate_14_day_routine(drills):
     routine = {}
@@ -597,6 +665,50 @@ def submit_daily_results():
     }), 200
 
 
+
+def get_gpt_response(message):
+    try:
+        client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a basketball training assistant."},
+                {"role": "user", "content": message}
+            ]
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print("❌ GPT error:", e)
+        return "⚠️ I'm having trouble thinking right now. Try again soon!"
+
+
+@app.route("/faq_bot", methods=["POST"])
+def faq_bot():
+    data = request.json
+    user_msg = data.get("message")
+
+    # Simple response for now or call to GPT
+    if not user_msg:
+        return jsonify({"response": "Please ask a valid question."}), 400
+
+    response = get_gpt_response(user_msg)  # <-- this should be a helper function
+    return jsonify({"response": response})
+
+
+@app.route("/ask_faq", methods=["POST"])
+def ask_faq():
+    data = request.json
+    question = data.get("question")
+
+    if not question:
+        return jsonify({"error": "No question provided"}), 400
+
+    try:
+        answer = ask_faq_bot(question)
+        return jsonify({"answer": answer})
+    except Exception as e:
+        return jsonify({"error": f"Failed to get response: {str(e)}"}), 500
 
 # --- GET ALL PLAYERS ---
 @app.route("/players", methods=["GET"])

@@ -11,13 +11,12 @@ function SubmitDrill() {
   const [message, setMessage] = useState("");
   const [hasCompletedTest, setHasCompletedTest] = useState(false);
   const [showOnLeaderboard, setShowOnLeaderboard] = useState(true);
-  const [wantsEmailReminders, setWantsEmailReminders] = useState(true); // ✅ New state
-
+  const [wantsEmailReminders, setWantsEmailReminders] = useState(true); 
   const name = user?.displayName?.toLowerCase();
 
   useEffect(() => {
     if (!user) {
-      setMessage("Please log in to continue.");
+      setMessage();
       return;
     }
 
@@ -94,7 +93,7 @@ function SubmitDrill() {
           position,
           results: formattedResults,
           show_on_leaderboard: showOnLeaderboard,
-          wants_email_reminders: wantsEmailReminders // ✅ Send to backend
+          wants_email_reminders: wantsEmailReminders
         }),
       });
 

@@ -10,6 +10,7 @@ import { useUser } from "./components/UserContext";
 import Leaderboard from "./components/Leaderboard";
 import ProgressChart from "./components/ProgressChart";
 import HowToUse from "./components/HowToUse";
+import ChatBotWidget from "./components/ChatBotWidget";
 
 import "./components/styles.css";
 
@@ -30,6 +31,7 @@ function App() {
         <Route path="/progress" element={<ProgressChart />} /> 
         <Route path="/how-to-use" element={<HowToUse />} />
       </Routes>
+      <ChatBotWidget />
     </Router>
   );
 }
