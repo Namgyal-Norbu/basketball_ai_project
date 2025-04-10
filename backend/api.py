@@ -23,6 +23,12 @@ from nba_api.stats.endpoints import playergamelog
 
 load_dotenv()
 
+faq_knowledge_base = {
+    "how do I improve my shooting?": "Practice form shooting daily and focus on footwork.",
+    "what's a good drill for dribbling?": "Try the cone dribble weave or 2-ball dribble drill.",
+    "how often should I train?": "Ideally, train 5 days a week for 45-60 minutes per session.",
+    "how is my skill level calculated?": "It's based on your average score during the test drills."
+}
 
 # Only initialize Firebase once
 if not firebase_admin._apps:
@@ -30,6 +36,7 @@ if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
+
 
 def send_email_reminder(to_email, subject, player_name):
     from_email = os.getenv("GMAIL_USER")
@@ -119,45 +126,30 @@ def get_recent_stats(player_name):
 
     latest_game = df.iloc[0]
     return f"{player_name.title()} scored {latest_game['PTS']} points, with {latest_game['REB']} rebounds and {latest_game['AST']} assists on {latest_game['GAME_DATE']}."
-# backend/api.py
-import requests  # ✅ Required for the API call
 
-@app.route("/nba_stats", methods=["POST"])
-def nba_stats():
-    try:
-        data = request.get_json()
-        player_name = data.get("player")
-        print(f"🔍 Searching for player: {player_name}")
 
-        search_url = f"https://www.balldontlie.io/api/v1/players?search={player_name}"
-        response = requests.get(search_url)
-        
-        if response.status_code != 200:
-            print("❌ Failed to fetch players")
-            return jsonify({"error": "❌ Error fetching stats. Try again soon."}), 500
+@app.route("/faq_manual", methods=["POST"])
+def faq_manual_bot():
+    data = request.json
+    user_msg = data.get("message", "").lower()
 
-        players = response.json().get("data", [])
-        if not players:
-            return jsonify({"error": "❌ Player not found."}), 404
+    faq_map = {
+      "shooting accuracy": "Try focusing on form shooting daily, and track your consistency.",
+    "beginner drills": "Form shooting, stationary dribbling, and layup lines are great for beginners.",
+    "daily drills": "We recommend 3 drills per day for consistent progress.",
+    "xp system": "You earn XP based on the total score of your drills. More effort = more XP!",
+    "level up": "Your routine adjusts based on your new skill level to keep things challenging.",
+    "dribbling drill": "Try the cone dribble weave or 2-ball dribble drill.",
+    "drill for dribbling": "Try the Figure 8 Dribbling Drill or Stationary Crossovers."
+}
+    
 
-        player_id = players[0]["id"]
-        stats_url = f"https://www.balldontlie.io/api/v1/season_averages?season=2023&player_ids[]={player_id}"
-        stats_response = requests.get(stats_url)
-        stats = stats_response.json().get("data", [])
+    for keyword, answer in faq_map.items():
+        if keyword in user_msg:
+            return jsonify({"response": answer})
+    
+    return jsonify({"response": "🤔 I'm not sure about that. Try asking about drills, XP, or leveling up."})
 
-        if not stats:
-            return jsonify({"error": "⚠️ No stats available for this season."}), 404
-
-        player_stats = stats[0]
-        return jsonify({
-            "response": f"📊 {player_name.title()} - PPG: {player_stats['pts']}, APG: {player_stats['ast']}, RPG: {player_stats['reb']}"
-        })
-
-    except Exception as e:
-        print(f"❌ GPT Error (stats): {e}")
-        return jsonify({"error": "⚠️ Error fetching stats. Try again soon."}), 500
-
-  
 
 
 
@@ -372,7 +364,8 @@ def submit_test_results():
         "routine": full_routine,
         "test_completed": True,
         "show_on_leaderboard": show_on_leaderboard,
-        "wants_email_reminders": wants_email_reminders
+        "wants_email_reminders": wants_email_reminders,
+        "badges": []
     })
 
     return jsonify({
@@ -440,7 +433,8 @@ def submit_drill_results():
         "results": results,
         "skill_level": skill_level,
         "routine": routine,
-         "show_on_leaderboard": show_on_leaderboard
+         "show_on_leaderboard": show_on_leaderboard,
+         "badges": updated_badge_list
     }, merge=True)
 
     # 5. Save today's results
@@ -588,23 +582,14 @@ def submit_daily_results():
     total_score = sum(int(score) for score in results.values() if str(score).isdigit())
     xp_gained = total_score * 5
 
-    # Save daily result
-    result_ref.set({
-        "name": name,
-        "email": email,
-        "day": today,
-        "results": results,
-        "xp_gained": xp_gained,
-        "timestamp": datetime.utcnow().isoformat()
-    })
-
     # Update player profile
     player_ref = db.collection("players").document(email)
     player_doc = player_ref.get()
 
-    # Default message
+    # Default response
     skill_msg = "✅ No skill level check (new player)."
-
+    updated_badge_list = []
+    
     if player_doc.exists:
         player_data = player_doc.to_dict()
         existing_results = player_data.get("results", [])
@@ -617,6 +602,10 @@ def submit_daily_results():
         position = player_data.get("position", "Unknown")
         skill_level = player_data.get("skill_level", "Beginner")
 
+        # 🏅 Calculate new badges
+        updated_badge_list = determine_badges(player_data, current_xp + xp_gained, streak_count=1)
+
+        # 🎯 Update 14-day routine
         drills_map = {
             "Guard": {
                 "Beginner": ["Form Shooting", "Stationary Dribbling", "Layups"],
@@ -638,16 +627,15 @@ def submit_daily_results():
         base_drills = drills_map.get(position, {}).get(skill_level, ["General Drills"])
         routine = {f"Day {i+1} - {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][i % 7]}": base_drills for i in range(14)}
 
-        # Save updates
         player_ref.update({
             "xp": current_xp + xp_gained,
             "results": new_results,
-            "routine": routine
+            "routine": routine,
+            "badges": updated_badge_list
         })
 
-        # Skill check
+        # 🔁 Check if skill should change
         skill_msg = check_skill_change(email, today)
-
 
     else:
         # First-time player
@@ -655,8 +643,20 @@ def submit_daily_results():
             "name": name,
             "email": email,
             "results": [str(score) for score in results.values()],
-            "xp": xp_gained
+            "xp": xp_gained,
+            "badges": [],
         })
+
+    # Save daily result
+    result_ref.set({
+        "name": name,
+        "email": email,
+        "day": today,
+        "results": results,
+        "xp_gained": xp_gained,
+        "timestamp": datetime.utcnow().isoformat(),
+        "badges": updated_badge_list
+    })
 
     return jsonify({
         "message": f"✅ Results submitted successfully. You earned {xp_gained} XP!",
@@ -716,7 +716,7 @@ def fetch_players():
     players = get_players()
     return jsonify([
         {
-            "id": p[0],
+            "id": p[0], 
             "name": p[1],
             "position": p[2],
             "skill_level": p[3],
@@ -897,6 +897,58 @@ def export_player_data():
         mimetype='application/json',
         headers={"Content-Disposition": f"attachment;filename={name}_data.json"}
     )
+
+@app.route("/player_question", methods=["POST"])
+def player_question():
+    data = request.json
+    email = data.get("email")
+    question = data.get("question", "").lower()
+
+    if not email or not question:
+        return jsonify({"response": "❌ Email and question are required."}), 400
+
+    player_ref = db.collection("players").document(email)
+    player_doc = player_ref.get()
+
+    if not player_doc.exists:
+        return jsonify({"response": "❌ Player not found."}), 404
+
+    player = player_doc.to_dict()
+    today = datetime.utcnow().strftime("%A")
+    result_id = f"{email}_{today}"
+    result_doc = db.collection("dailyResults").document(result_id).get()
+
+    # 🌟 Match question patterns
+    if "xp" in question:
+        return jsonify({"response": f"💪 You currently have {player.get('xp', 0)} XP."})
+
+    if "level" in question or "skill" in question:
+        return jsonify({"response": f"🧠 Your current skill level is {player.get('skill_level', 'Unknown')}."})
+
+    if "badge" in question:
+        badges = player.get("badges", [])
+        return jsonify({"response": f"🏅 You’ve earned: {', '.join(badges) if badges else 'no badges yet.'}"})
+
+    if "drill" in question and "today" in question:
+        routine_dict = player.get("routine", {})
+        # Look for the key that contains today's day
+        matching_day = next((key for key in routine_dict if today in key), None)
+        if matching_day:
+            drills = routine_dict[matching_day]
+            return jsonify({"response": f"📋 Your drills for today ({today}) are: {', '.join(drills)}"})
+        else:
+            return jsonify({"response": f"😕 No drills found for {today}."})
+
+    if "result" in question or "logged" in question:
+        if result_doc.exists:
+            scores = result_doc.to_dict().get("results", {})
+            response = "\n".join([f"• {k}: {v}" for k, v in scores.items()])
+            return jsonify({"response": f"📈 Your logged results for {today}:\n{response}"})
+        else:
+            return jsonify({"response": f"🕐 You haven’t submitted any results for today ({today})."})
+
+    return jsonify({"response": "🤔 I didn’t understand that. Try asking about XP, level, badges, drills, or results."})
+
 
 
 # --- ASSESS NEW PLAYER & SAVE TO DB ---
