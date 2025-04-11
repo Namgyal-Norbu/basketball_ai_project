@@ -59,12 +59,13 @@ function Navbar() {
 
   return (
     <nav className="navbar">
-      <div className="logo">🏀 Basketball AI Routine Creator</div>
+      <a href="/" className="logo">🏀 Basketball AI Routine Creator</a>
+
 
       <div className="nav-links">
         <a href="/">Home</a>
         <a href="/drill-test">Daily Drills</a>
-        <a href="/submit-drills">Submit Drills</a>
+        <a href="/submit-drills">Submit Test Drills</a>
         <a href="/leaderboard">Leaderboard</a>
         <a href="/progress">Progress</a>
         <a href="/how-to-use">How to Use</a>

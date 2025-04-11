@@ -72,15 +72,25 @@ body {
   box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
 }
 
-/* Form Inputs */
-input, select, button {
+.logo {
+  font-size: 20px;
+  font-weight: bold;
+  text-decoration: none;
+  color: white;
+}
+
+input,
+select,
+button {
   display: block;
   width: 100%;
-  padding: 10px;
+  padding: 10px 14px; 
   margin: 10px 0;
   border: 1px solid #ccc;
   border-radius: 5px;
+  box-sizing: border-box; 
 }
+
 
 /* Button */
 button {
@@ -223,6 +233,10 @@ button:hover {
   cursor: pointer;
   transition: background-color 0.3s ease;
 }
+.form-section {
+  padding: 0 20px; 
+}
+
 
 .danger-button:hover {
   opacity: 0.9;

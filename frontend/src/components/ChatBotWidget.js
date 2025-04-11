@@ -1,104 +1,136 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./ChatBotWidget.css";
 import { auth } from "../firebaseConfig";
+
+const categories = [
+  "📋 Daily Drills",
+  "📈 Player Progress",
+  "🎖️ Achievements & Badges",
+  "🎯 Leveling & XP",
+  "📅 Training Schedule",
+  "🏆 Leaderboard Info",
+  "🛠️ Account & Settings",
+];
+
+const subcategories = {
+  "📋 Daily Drills": ["Today's Drills"],
+  "📈 Player Progress": ["XP", "Skill Level", "Progress Graph"],
+  "🎖️ Achievements & Badges": ["My Badges"],
+  "🎯 Leveling & XP": ["How do I earn XP?"],
+  "📅 Training Schedule": ["Recommended Weekly Routine"],
+  "🏆 Leaderboard Info": ["Top Players"],
+  "🛠️ Account & Settings": ["Delete My Profile", "Export My Data"],
+};
 
 function ChatBotWidget() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { sender: "bot", text: "Hey! I'm here to answer your basketball questions." }
+    { sender: "bot", text: "Hey! I'm here to answer your basketball questions." },
   ]);
-  const [input, setInput] = useState("");
+  const [stage, setStage] = useState("category");
+  const [selectedCategory, setSelectedCategory] = useState("");
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
+  const scrollRef = useRef(null);
 
-    const newMessages = [...messages, { sender: "user", text: input }];
-    setMessages(newMessages);
-    setInput("");
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, stage]);
+
+  const addMessage = (sender, text) => {
+    setMessages((prev) => [...prev, { sender, text }]);
+  };
+
+  const handleCategorySelect = (category) => {
+    addMessage("user", category);
+    setSelectedCategory(category);
+    setStage("subcategory");
+
+    setTimeout(() => {
+      addMessage("bot", "Great! What do you want to know about?");
+    }, 400);
+  };
+
+  const handleSubcategorySelect = async (sub) => {
+    addMessage("user", sub);
+    const user = auth.currentUser;
+    const email = user?.email || null;
 
     try {
-      const lowerInput = input.toLowerCase();
-      const user = auth.currentUser;
-
-      if (!user) {
-        setMessages([
-          ...newMessages,
-          { sender: "bot", text: "⚠️ Please log in to ask personal questions." }
-        ]);
-        return;
-      }
-
-      const email = user.email;
-
-      // 🏀 1. Check if it's an NBA stats request
-      if (lowerInput.includes("stats for")) {
-        const playerName = input.replace(/stats for/i, "").trim();
-        const res = await fetch("http://127.0.0.1:5000/nba_stats", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ player: playerName }),
-        });
-        const data = await res.json();
-        setMessages([...newMessages, { sender: "bot", text: data.response || data.error }]);
-        return;
-      }
-
-      // 📊 2. Check for player-specific questions (XP, level, badges, etc.)
-      const statKeywords = ["xp", "level", "skill", "badge", "drill", "result", "logged"];
-      if (statKeywords.some((keyword) => lowerInput.includes(keyword))) {
-        const res = await fetch("http://127.0.0.1:5000/player_question", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, question: input }),
-        });
-        const data = await res.json();
-        setMessages([...newMessages, { sender: "bot", text: data.response }]);
-        return;
-      }
-
-      // 💬 3. Fallback to manual FAQ bot
-      const res = await fetch("http://127.0.0.1:5000/faq_manual", {
+      const res = await fetch("http://127.0.0.1:5000/chatbot_query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input }),
+        body: JSON.stringify({
+          category: selectedCategory,
+          subcategory: sub.toLowerCase().replace(/[^a-z0-9]/gi, ""),
+          email,
+        }),
       });
 
       const data = await res.json();
-      setMessages([...newMessages, { sender: "bot", text: data.response }]);
+      addMessage("bot", data.response);
     } catch (err) {
-      setMessages([
-        ...newMessages,
-        { sender: "bot", text: "❌ Something went wrong. Please try again later." },
-      ]);
+      addMessage("bot", "❌ Sorry, something went wrong.");
     }
+
+    setStage("done");
+  };
+
+  const resetChat = () => {
+    setStage("category");
+    setSelectedCategory("");
+    addMessage("bot", "What else would you like to ask?");
   };
 
   return (
     <div className="chatbot-container">
       {open && (
         <div className="chatbox">
-          <div className="chat-header">🤖 FAQ Bot</div>
-          <div className="chat-messages">
-            {messages.map((msg, i) => (
-              <div key={i} className={`message ${msg.sender}`}>
-                {msg.text}
-              </div>
-            ))}
-          </div>
-          <div className="chat-input-vertical">
-            <input
-              type="text"
-              placeholder="Ask something..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            />
-            <button onClick={handleSend}>Send</button>
+          <div className="chat-header">🤖 Basketball ChatBot</div>
+
+          <div className="chat-scroll-wrapper" ref={scrollRef}>
+            <div className="chat-messages">
+              {messages.map((msg, i) => (
+                <div key={i} className={`message ${msg.sender}`}>
+                  {msg.text}
+                </div>
+              ))}
+
+              {stage === "category" &&
+                categories.map((cat) => (
+                  <button
+                    className="chat-button"
+                    key={cat}
+                    onClick={() => handleCategorySelect(cat)}
+                  >
+                    {cat}
+                  </button>
+                ))}
+
+              {stage === "subcategory" &&
+                subcategories[selectedCategory].map((sub) => (
+                  <button
+                    className="chat-button"
+                    key={sub}
+                    onClick={() => handleSubcategorySelect(sub)}
+                  >
+                    {sub}
+                  </button>
+                ))}
+
+              {stage === "done" && (
+                <button className="chat-button" onClick={resetChat}>
+                  🔄 Ask Another Question
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
+
       <button className="chat-toggle" onClick={() => setOpen(!open)}>
-        {open ? "✖" : "💬 FAQ"}
+        {open ? "✖" : "💬 Chat"}
       </button>
     </div>
   );

@@ -20,7 +20,8 @@ function Home() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${user.displayName.toLowerCase()}_data.json`;
+      a.download = `${user.displayName.toLowerCase()}_data.pdf`;
+
       a.click();
     } catch (err) {
       alert("⚠️ Failed to download data");
