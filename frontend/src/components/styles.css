@@ -11,32 +11,42 @@ body {
 /* Navbar */
 .navbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   background-color: #222;
   padding: 1rem 2rem;
   color: white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
 .nav-links {
   display: flex;
-  gap: 20px;
+  justify-content: center;
+  flex: 1;
+  gap: 28px;
 }
 
 .nav-links a {
   color: white;
   text-decoration: none;
-  font-size: 18px;
+  font-size: 16px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
 }
 
 .nav-links a:hover {
-  text-decoration: underline;
+  background-color: #444;
 }
 
-/* Auth Section (Right Side of Navbar) */
 .auth-section {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  min-width: 100px;
 }
 
 .login-btn {
@@ -77,6 +87,9 @@ body {
   font-weight: bold;
   text-decoration: none;
   color: white;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 input,

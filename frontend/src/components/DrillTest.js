@@ -1,114 +1,177 @@
 import React, { useState, useEffect } from "react";
-import { db, doc, getDoc} from "../firebaseConfig";
+import { useUser } from "./UserContext";
 import "./styles.css";
 
-function DrillTest({ user }) {
-  const [todayDrills, setTodayDrills] = useState([]);
+function SubmitDrill() {
+  const user = useUser();
+  const [daysPerWeek, setDaysPerWeek] = useState(3);
+  const [testDrills, setTestDrills] = useState({});
   const [results, setResults] = useState({});
   const [message, setMessage] = useState("");
+  const [hasCompletedTest, setHasCompletedTest] = useState(false);
+  const [showOnLeaderboard, setShowOnLeaderboard] = useState(true);
+  const [wantsEmailReminders, setWantsEmailReminders] = useState(true);
+  const name = user?.displayName?.toLowerCase();
 
-  const email = user?.email;
-const todayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
+  useEffect(() => {
+    if (!user) return;
 
-useEffect(() => {
-  const fetchTodaysDrills = async () => {
-    if (!email) return;
-
-    try {
-      const ref = doc(db, "players", email);
-      const snap = await getDoc(ref);
-
-      if (snap.exists()) {
-        const data = snap.data();
-        const routine = data.routine || {};
-        const matchedKey = Object.keys(routine).find((key) =>
-          key.includes(todayName)
-        );
-        const todayRoutine = matchedKey ? routine[matchedKey] : [];
-
-        setTodayDrills(todayRoutine);
-
-        const initialResults = {};
-        todayRoutine.forEach((drill) => {
-          initialResults[drill] = "";
-        });
-        setResults(initialResults);
-      } else {
-        setMessage("❌ Player not found in database.");
+    const checkTestStatus = async () => {
+      try {
+        const res = await fetch(`http://127.0.0.1:5000/player_status?email=${user.email}`);
+        const data = await res.json();
+        if (data.test_completed) {
+          setHasCompletedTest(true);
+          setMessage("🚫 You’ve already completed your drill test.");
+        }
+      } catch (err) {
+        console.error("Error checking test status:", err);
       }
-    } catch (err) {
-      console.error("Error loading drills:", err);
-      setMessage("⚠️ Error fetching today's drills.");
+    };
+
+    checkTestStatus();
+  }, [user]);
+
+  const fetchTestDrills = async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:5000/generate_drill_test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email: user.email })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.drills) {
+        setTestDrills(data.drills);
+
+        const initial = {};
+        for (const drills of Object.values(data.drills)) {
+          drills.forEach(drill => {
+            initial[drill] = "";
+          });
+        }
+        setResults(initial);
+        setMessage(data.message || "");
+      } else {
+        setMessage(data.error || "Failed to fetch drills.");
+      }
+    } catch (error) {
+      console.error("Fetch error:", error);
+      setMessage("Unable to load drills.");
     }
   };
 
-  fetchTodaysDrills();
-}, [email, todayName]);
+  const handleChange = (key, value) => {
+    setResults({ ...results, [key]: value });
+  };
 
+  const handleSubmit = async () => {
+    const allFilled = Object.values(results).every(val => val !== "" && !isNaN(val));
+    if (!allFilled) {
+      setMessage("🚫 Please complete all drill scores before submitting.");
+      return;
+    }
 
-  const handleResultSubmit = async () => {
     const formattedResults = {};
-    Object.entries(results).forEach(([drillName, value]) => {
-      formattedResults[drillName] = parseInt(value || "0");
-    });
-  
+    for (const drill in results) {
+      formattedResults[drill] = Number(results[drill]) || 0;
+    }
+
     try {
-      const res = await fetch("http://127.0.0.1:5000/submit_daily_results", {
+      const res = await fetch("http://127.0.0.1:5000/submit_test_results", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: user.displayName,
+          name,
           email: user.email,
           results: formattedResults,
+          show_on_leaderboard: showOnLeaderboard,
+          wants_email_reminders: wantsEmailReminders,
+          days_per_week: daysPerWeek
         }),
       });
-  
+
       const data = await res.json();
-      if (res.status === 200) {
-        setMessage(data.message || "✅ Drill results submitted!");
+
+      if (res.status === 403) {
+        setMessage("🚫 You have already submitted your drill test.");
+        setHasCompletedTest(true);
       } else {
-        setMessage(data.error || "⚠️ Failed to submit results.");
+        setMessage(data.message || "✅ Drill results submitted!");
+        setHasCompletedTest(true);
       }
-    } catch (err) {
-      console.error("Error submitting results:", err);
-      setMessage("⚠️ Failed to submit results.");
+    } catch (error) {
+      console.error("Submit error:", error);
+      setMessage("Failed to submit test results.");
     }
   };
-  
 
   return (
     <div className="container">
-      <h2>📅 Today's Routine ({todayName})</h2>
+      <h2>🏀 Submit Drill Test</h2>
 
       {user ? (
         <>
-          <p><strong>Welcome,</strong> {user.displayName}</p>
+          <p><strong>Logged in as:</strong> {user.displayName}</p>
 
-          {todayDrills.length > 0 ? (
-            <>
-              <div className="form-section">
-                {todayDrills.map((drill, idx) => (
-                  <div key={idx}>
-                    <label>{drill}</label>
-                    <input
-                      type="text"
-                      placeholder="Enter result"
-                      value={results[drill] || ""}
-                      onChange={(e) =>
-                        setResults({ ...results, [drill]: e.target.value })
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-              <button onClick={handleResultSubmit}>Submit Results</button>
-            </>
+          {hasCompletedTest ? (
+            <p>✅ You have already completed your drill test. Great work!</p>
           ) : (
-            <p>No drills assigned for today.</p>
+            <>
+              <label>Days per Week:</label>
+              <select value={daysPerWeek} onChange={(e) => setDaysPerWeek(Number(e.target.value))}>
+                {[1, 2, 3, 4, 5, 6, 7].map((day) => (
+                  <option key={day} value={day}>{day}</option>
+                ))}
+              </select>
+
+              <button onClick={fetchTestDrills}>🧪 Load Test Drills</button>
+
+              {Object.keys(testDrills).length > 0 && (
+                <div className="form-section">
+                  {Object.entries(testDrills)
+                    .flatMap(([_, drills]) => drills)
+                    .map((drill, idx) => (
+                      <div key={idx}>
+                        <label>{drill}</label>
+                        <input
+                          type="number"
+                          value={results[drill] || ""}
+                          onChange={(e) => handleChange(drill, e.target.value)}
+                          min="0"
+                          max="100"
+                        />
+                      </div>
+                    ))}
+
+                  <div className="checkbox-wrapper">
+                    <input
+                      type="checkbox"
+                      id="showOnLeaderboard"
+                      checked={showOnLeaderboard}
+                      onChange={() => setShowOnLeaderboard(!showOnLeaderboard)}
+                    />
+                    <label htmlFor="showOnLeaderboard">Show my stats on the public leaderboard</label>
+                  </div>
+
+                  <div className="checkbox-wrapper">
+                    <input
+                      type="checkbox"
+                      id="wantsEmailReminders"
+                      checked={wantsEmailReminders}
+                      onChange={() => setWantsEmailReminders(!wantsEmailReminders)}
+                    />
+                    <label htmlFor="wantsEmailReminders">Send me daily email reminders for drills</label>
+                  </div>
+
+                  <button onClick={handleSubmit}>✅ Submit Test Results</button>
+                </div>
+              )}
+            </>
           )}
         </>
       ) : (
-        <p>🔒 Please log in to view your drills.</p>
+        <p>🔒 Please log in to access your drill test.</p>
       )}
 
       {message && <p>{message}</p>}
@@ -116,4 +179,4 @@ useEffect(() => {
   );
 }
 
-export default DrillTest;
+export default SubmitDrill;

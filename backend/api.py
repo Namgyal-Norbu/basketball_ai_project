@@ -1,8 +1,6 @@
-import requests
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from database import get_players, add_new_player, log_workout
-from ai_engine import get_ai_recommendations
 import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime, timedelta, date
@@ -15,13 +13,54 @@ import time
 import threading
 import os
 from dotenv import load_dotenv
-import openai
-openai.api_key = os.getenv("OPENAI_API_KEY")
-from nba_api.stats.static import players
-from nba_api.stats.endpoints import playergamelog
+from datetime import datetime, UTC
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from io import BytesIO
+from flask import send_file
+from flask_cors import cross_origin
+import random
 
 
 load_dotenv()
+
+skill_drill_bank = {
+    "shooting": {
+        "Amateur": ["Form Shooting", "Spot Shots"],
+        "Beginner": ["Catch & Shoot", "Bank Shots"],
+        "Intermediate": ["Pull-Up Jumpers", "Off-Dribble 3s"],
+        "Advanced": ["Step-back 3s", "Curl Screens"],
+        "Professional": ["Shooting Under Pressure", "Deep Range Shooting"]
+    },
+    "ball_handling": {
+        "Amateur": ["Cone Dribbles", "Stationary Crossovers"],
+        "Beginner": ["Zig-Zag Dribble", "Two-Ball Dribble"],
+        "Intermediate": ["Change-of-Pace Moves", "Speed Dribbling"],
+        "Advanced": ["Behind-the-Back Sequences", "Crossover & Finish"],
+        "Professional": ["Elite Combo Moves", "Game Speed Dribbling"]
+    },
+    "defense": {
+        "Amateur": ["Defensive Slides", "Hands Up Drill"],
+        "Beginner": ["Closeouts", "Shuffle Slides"],
+        "Intermediate": ["1v1 Defense", "Help Defense Rotations"],
+        "Advanced": ["Switch Defense", "Trap Rotations"],
+        "Professional": ["Elite Recovery", "Defensive Read & React"]
+    },
+    "finishing": {
+        "Amateur": ["Basic Layups", "Mikan Drill"],
+        "Beginner": ["Contested Layups", "Reverse Layups"],
+        "Intermediate": ["Floaters", "Inside Hand Finish"],
+        "Advanced": ["Euro Step", "Spin Finish"],
+        "Professional": ["Body Contact Finishing", "And-1 Simulation"]
+    },
+    "footwork": {
+        "Amateur": ["Jump Stops", "Triple Threat Position"],
+        "Beginner": ["Pivot Series", "Footwork Squares"],
+        "Intermediate": ["Ladder Drills", "Shot Preparation"],
+        "Advanced": ["Up-and-Under Footwork", "Turnarounds"],
+        "Professional": ["Pro Jab Sequences", "Advanced Footwork Counters"]
+    }
+}
 
 faq_knowledge_base = {
     "how do I improve my shooting?": "Practice form shooting daily and focus on footwork.",
@@ -57,8 +96,6 @@ chatbot_knowledge_base = {
     }
 }
 
-
-
 # Only initialize Firebase once
 if not firebase_admin._apps:
     cred = credentials.Certificate("basketball-c918a-firebase-adminsdk-fbsvc-f831bd2577.json")
@@ -66,6 +103,34 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
+def build_drill_to_skill_map():
+    mapping = {}
+    for skill, levels in skill_drill_bank.items():
+        for drill_list in levels.values():
+            for drill in drill_list:
+                mapping[drill] = skill
+    return mapping
+drill_to_skill = build_drill_to_skill_map()
+
+
+def generate_skill_based_routine_by_level(skill_level, days=14):
+    routine = {}
+    weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    skill_categories = list(skill_drill_bank.keys())
+
+    for i in range(days):
+        day_name = weekdays[i % 7]
+        drills_for_day = []
+
+        for skill in skill_categories:
+            drills_by_level = skill_drill_bank[skill].get(skill_level, [])
+            if drills_by_level:
+                selected_drill = random.choice(drills_by_level)
+                drills_for_day.append(selected_drill)
+
+        routine[f"Day {i+1} - {day_name}"] = drills_for_day
+
+    return routine
 
 def send_email_reminder(to_email, subject, player_name):
     from_email = os.getenv("GMAIL_USER")
@@ -117,51 +182,6 @@ def send_email_reminder(to_email, subject, player_name):
     
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
-def get_drills_map():
-    return {
-        "Guard": {
-            "Amateur": ["Wall Passing", "Pivoting Basics", "Bounce Drills"],
-            "Beginner": ["Form Shooting", "Stationary Dribbling", "Layups"],
-            "Intermediate": ["Catch & Shoot", "Speed Dribbling", "Floaters"],
-            "Advanced": ["3-Point Shooting", "Pick-and-Roll", "Fast Break Offense"],
-            "Professional": ["Iso Step-back 3s", "Elite Pick-and-Roll", "Game Simulations"]
-        },
-        "Forward": {
-            "Amateur": ["Jump Stops", "Chest Pass Basics", "Pivot Footwork"],
-            "Beginner": ["Post Entries", "Jump Stops", "Backboard Layups"],
-            "Intermediate": ["Spin Move Finishes", "Baseline Cuts", "Help Defense"],
-            "Advanced": ["Isolation Scoring", "Mid-Post Fadeaways", "Transition Defense"],
-            "Professional": ["Elite Rebounding", "Wing Isolation Reads", "Advanced Pick Defense"]
-        },
-        "Center": {
-            "Amateur": ["Pivoting in Post", "Wall Shots", "Simple Rebounds"],
-            "Beginner": ["Drop Steps", "Rebounding Form", "Close-Range Shots"],
-            "Intermediate": ["Hook Shots", "Outlet Passes", "Post Defense"],
-            "Advanced": ["Advanced Post Moves", "Shot Blocking", "Pick & Roll Defense"],
-            "Professional": ["Back-to-Basket Mastery", "Defensive Anchor Reads", "Transition Rim Runs"]
-        }
-    }
-
-
-def get_recent_stats(player_name):
-    player_dict = players.find_players_by_full_name(player_name)
-    if not player_dict:
-        return "❌ Player not found."
-
-    player_id = player_dict[0]['id']
-
-    gamelog = playergamelog.PlayerGameLog(
-        player_id=player_id,
-        season='2023-24',
-        season_type_all_star='Regular Season'
-    )
-    df = gamelog.get_data_frames()[0]
-
-    if df.empty:
-        return "❌ No games found."
-
-    latest_game = df.iloc[0]
-    return f"{player_name.title()} scored {latest_game['PTS']} points, with {latest_game['REB']} rebounds and {latest_game['AST']} assists on {latest_game['GAME_DATE']}."
 
 
 @app.route("/faq_manual", methods=["POST"])
@@ -186,16 +206,6 @@ def faq_manual_bot():
     
     return jsonify({"response": "🤔 I'm not sure about that. Try asking about drills, XP, or leveling up."})
 
-
-
-
-def generate_14_day_routine(drills):
-    routine = {}
-    weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    for i in range(14):
-        routine[f"Day {i+1} - {weekdays[i % 7]}"] = drills
-    return routine
-
 def check_skill_change(email, today_day_name):
     player_ref = db.collection("players").document(email)
     player_data = player_ref.get().to_dict()
@@ -204,7 +214,7 @@ def check_skill_change(email, today_day_name):
         return "Player not found for skill check."
 
     current_level = player_data.get("skill_level", "Beginner")
-    position = player_data.get("position")
+   
     levels = ["Amateur", "Beginner", "Intermediate", "Advanced", "Professional"]
     current_index = levels.index(current_level)
 
@@ -234,8 +244,8 @@ def check_skill_change(email, today_day_name):
   
     if low_days >= 3 and current_index > 0:
         new_level = levels[current_index - 1]
-        drills_map = get_drills_map()
-        new_routine = generate_14_day_routine(drills_map[position][new_level])
+        
+        new_routine = generate_skill_based_routine_by_level(new_level)
         player_ref.update({
             "skill_level": new_level,
             "routine": new_routine
@@ -245,8 +255,8 @@ def check_skill_change(email, today_day_name):
    
     if high_days >= 3 and current_index < len(levels) - 1:
         new_level = levels[current_index + 1]
-        drills_map = get_drills_map()
-        new_routine = generate_14_day_routine(drills_map[position][new_level])
+        
+        new_routine = generate_skill_based_routine_by_level(new_level)
         player_ref.update({
             "skill_level": new_level,
             "routine": new_routine
@@ -255,6 +265,10 @@ def check_skill_change(email, today_day_name):
 
     return "✅ No skill level change needed."
 
+
+@app.route("/skill_drill_bank", methods=["GET"])
+def get_skill_drill_bank():
+    return jsonify(skill_drill_bank)
 
 @app.route("/send_reminder", methods=["POST"])
 def send_reminder():
@@ -277,41 +291,33 @@ def send_reminder():
 
 @app.route("/generate_drill_test", methods=["POST"])
 def generate_drill_test():
-    
     data = request.json
     name = data.get("name")
-    position = data.get("position")
-    email = data.get("email")  # ✅ Get email from request
+    email = data.get("email")
 
-    if not name or not position or not email:
-        return jsonify({"error": "Missing name, position, or email"}), 400
+    if not name or not email:
+        return jsonify({"error": "Missing name or email"}), 400
 
     player_ref = db.collection("players").document(email)
-    player_doc = player_ref.get()
-
-    drills_by_position = {
-        "Guard": ["Dribble Course", "Free Throws", "Speed Layups"],
-        "Forward": ["Post Moves", "Mid-Range Shooting", "Box Out Drills"],
-        "Center": ["Rebounding", "Hook Shots", "Defensive Positioning"]
-    }
-
-    test_drills = drills_by_position.get(position, ["General Drills"])
-
-    # 🔄 Create or update player entry with email, position & drills
     player_ref.set({
         "name": name,
-        "position": position,
-        "email": email,  # ✅ Save email to Firestore
-        "drills": test_drills,
-        "show_on_leaderboard": True,
+        "email": email,
         "test_completed": False
     }, merge=True)
 
+    # Categorized test drills
+    test_drills = {
+        "shooting": ["Free Throws"],
+        "ball_handling": ["Zig-Zag Dribble"],
+        "defense": ["Closeouts",],
+        "finishing": ["Contested Layups",],
+        "footwork": ["Jump Stops", ]
+    }
+
     return jsonify({
-        "message": f"Drill test created for {name} ({position})",
+        "message": f"Test drills generated for {name}.",
         "drills": test_drills
     })
-
 
 
 @app.route("/player_status")
@@ -322,13 +328,45 @@ def player_status():
 
     doc = db.collection("players").document(email).get()
     if not doc.exists:
-        return jsonify({"test_completed": False})
+        return jsonify({"test_completed": False})  # <— still safe if missing
 
     return jsonify({
         "test_completed": doc.to_dict().get("test_completed", False)
     })
 
+@app.route("/assess_skill_weighted", methods=["POST"])
+@cross_origin()
+def assess_skill_weighted():
+    print("🎯 POST request received for /assess_skill_weighted")
+    data = request.get_json()
 
+    # Normalized weights excluding "passing"
+    weights = {
+        "shooting": 0.274,
+        "ball_handling": 0.267,
+        "defense": 0.219,
+        "finishing": 0.137,
+        "footwork": 0.104
+    }
+
+    weighted_score = 0
+    missing_keys = []
+
+    for skill, weight in weights.items():
+        if skill not in data:
+            missing_keys.append(skill)
+            continue
+        weighted_score += data[skill] * weight
+
+    if missing_keys:
+        return jsonify({
+            "error": f"Missing required fields: {', '.join(missing_keys)}"
+        }), 400
+
+    return jsonify({
+        "weighted_score": round(weighted_score, 2),
+        "message": f"🎯 Weighted performance score: {round(weighted_score, 2)}"
+    })
 
 
 @app.route("/submit_test_results", methods=["POST"])
@@ -336,12 +374,13 @@ def submit_test_results():
     data = request.json
     email = data.get("email")
     name = data.get("name")
-    results = data.get("results")  
+    results = data.get("results")  # expects drill name -> score
     show_on_leaderboard = data.get("show_on_leaderboard", False)
     wants_email_reminders = data.get("wants_email_reminders", False)
+    days_per_week = int(data.get("days_per_week", 7))  # Default to 7
 
-    if not name or not results:
-        return jsonify({"error": "Missing name or results"}), 400
+    if not name or not results or not email:
+        return jsonify({"error": "Missing name, email, or results"}), 400
 
     player_ref = db.collection("players").document(email)
     doc = player_ref.get()
@@ -351,213 +390,76 @@ def submit_test_results():
     if doc.to_dict().get("test_completed"):
         return jsonify({"error": "Test already submitted. You can't take it again."}), 403
 
-    player = doc.to_dict()
-    position = player.get("position", "Unknown")
-
-    try:
-        scores = list(map(int, results.values()))
-        avg_score = sum(scores) / len(scores)
-    except:
-        return jsonify({"error": "Invalid score values"}), 400
-
-    if avg_score >= 90:
-        skill = "Professional"
-    elif avg_score >= 70:
-        skill = "Advanced"
-    elif avg_score >= 50:
-        skill = "Intermediate"
-    elif avg_score >= 30:
-        skill = "Beginner"
-    else:
-        skill = "Amateur"
-
-    # Generate 14-day routine
-    routines = {
-        "Guard": {
-            "Beginner": ["Form Shooting", "Basic Dribbling", "Layup Lines"],
-            "Intermediate": ["Speed Dribbling", "Catch & Shoot", "Pull-Up Jumpers"],
-            "Advanced": ["3-Point Shooting", "Pick & Roll Reads", "Iso Moves"]
-        },
-        "Forward": {
-            "Beginner": ["Post Entry Passing", "Rebounding Basics", "Close Shots"],
-            "Intermediate": ["Spin Moves", "Elbow Jumpers", "Help Defense"],
-            "Advanced": ["Mid-Post Isolation", "Transition Defense", "Step-back Shooting"]
-        },
-        "Center": {
-            "Beginner": ["Post Footwork", "Layups", "Outlet Passing"],
-            "Intermediate": ["Post Hooks", "Rim Protection", "Drop Step Moves"],
-            "Advanced": ["Pick & Roll Defense", "Advanced Post Work", "Shot Contesting"]
-        }
+    # 🔁 Map drills to skills
+    drill_to_skill = {
+        "Zig-Zag Dribble": "ball_handling",
+        "Closeouts": "defense",
+        "Contested Layups": "finishing",
+        "Jump Stops": "footwork",
+        "Free Throws": "shooting"
     }
 
-    routine = routines.get(position, {}).get(skill, ["General Drills"])
-    full_routine = {}
-    start_date = datetime.today().date()
-    for i in range(14):
-        day = start_date + timedelta(days=i)
-        weekday = day.strftime("%A")
-        full_routine[weekday] = routine
+    # 🎯 Use weighted scoring
+    weights = {
+        "shooting": 0.274,
+        "ball_handling": 0.267,
+        "defense": 0.219,
+        "finishing": 0.137,
+        "footwork": 0.104
+    }
 
-    # Save player info
+    # Aggregate drill scores into skill scores
+    skill_scores = {k: 0 for k in weights.keys()}
+    try:
+        for drill_name, score in results.items():
+            skill = drill_to_skill.get(drill_name)
+            if skill:
+                skill_scores[skill] = int(score)
+    except Exception as e:
+        return jsonify({"error": f"Failed to parse results: {e}"}), 400
+
+    weighted_score = sum(skill_scores[skill] * weights[skill] for skill in weights)
+
+    # 🧠 Skill classification
+    if weighted_score >= 90:
+        skill_level = "Professional"
+    elif weighted_score >= 70:
+        skill_level = "Advanced"
+    elif weighted_score >= 50:
+        skill_level = "Intermediate"
+    elif weighted_score >= 30:
+        skill_level = "Beginner"
+    else:
+        skill_level = "Amateur"
+
+    # ✅ Generate routine using skill-based drill bank (not "General Drills")
+    full_routine = generate_skill_based_routine_by_level(skill_level, days=14)
+
+    # 💾 Save player profile to Firestore
     player_ref.update({
-        "results": results,
-        "skill_level": skill,
+        "name": name,
+        "email": email,
+        "results": results,  # original test results
+        "skill_level": skill_level,
         "routine": full_routine,
         "test_completed": True,
         "show_on_leaderboard": show_on_leaderboard,
         "wants_email_reminders": wants_email_reminders,
-        "badges": []
+        "badges": [],
+        "days_per_week": days_per_week
     })
 
     return jsonify({
-        "message": f"Results submitted. {name} is classified as {skill}.",
-        "skill_level": skill,
-        "routine": full_routine
-    })
-
-
-@app.route("/submit_drill_results", methods=["POST"])
-def submit_drill_results():
-    data = request.json
-    name = data.get("name")
-    email = data.get("email")
-    position = data.get("position")
-    results = data.get("results")  # list of scores
-
-    if not all([name, email, position, results]):
-        return jsonify({"error": "Missing fields"}), 400
-
-    # 1. Determine skill level
-    scores = list(map(int, results))
-    avg_score = sum(scores) // len(scores)
-    if avg_score >= 90:
-        skill = "Professional"
-    elif avg_score >= 70:
-        skill = "Advanced"
-    elif avg_score >= 50:
-        skill = "Intermediate"
-    elif avg_score >= 30:
-        skill = "Beginner"
-    else:
-        skill = "Amateur"
-
-    # 2. Define drills
-    drills = {
-        "Guard": {
-            "Beginner": ["Form Shooting", "Stationary Dribbling", "Layups"],
-            "Intermediate": ["Catch & Shoot", "Speed Dribbling", "Floaters"],
-            "Advanced": ["3-Point Shooting", "Pick-and-Roll", "Fast Break Offense"]
-        },
-        "Forward": {
-            "Beginner": ["Post Entries", "Jump Stops", "Backboard Layups"],
-            "Intermediate": ["Spin Move Finishes", "Baseline Cuts", "Help Defense"],
-            "Advanced": ["Isolation Scoring", "Mid-Post Fadeaways", "Transition Defense"]
-        },
-        "Center": {
-            "Beginner": ["Drop Steps", "Rebounding Form", "Close-Range Shots"],
-            "Intermediate": ["Hook Shots", "Outlet Passes", "Post Defense"],
-            "Advanced": ["Advanced Post Moves", "Shot Blocking", "Pick & Roll Defense"]
-        }
-    }
-
-    # 3. Generate 14-day routine
-    base_drills = drills.get(position, {}).get(skill_level, ["General Drills"])
-    routine = {}
-    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    for i in range(14):
-        day_name = days[i % 7]
-        routine[f"Day {i+1} - {day_name}"] = base_drills
-
-    # 4. Save player profile + routine
-    player_ref = db.collection("players").document(email)
-    player_ref.set({
-        "name": name,
-        "email": email,
-        "position": position,
-        "results": results,
+        "message": f"🎯 Results submitted. {name} is classified as {skill_level}.",
         "skill_level": skill_level,
-        "routine": routine,
-         "show_on_leaderboard": show_on_leaderboard,
-         "badges": updated_badge_list
-    }, merge=True)
-
-    # 5. Save today's results
-    today = data.get("mock_day") or datetime.today().strftime("%A")
-    db.collection("dailyResults").document(f"{name}_{today}").set({
-        "name": name,
-        "email": email,
-        "day": today,
-        "results": {f"Drill {i+1}": score for i, score in enumerate(results)},
-        "timestamp": datetime.utcnow().isoformat()
+        "routine": full_routine,
+        "weighted_score": round(weighted_score, 2)
     })
-
-    # 6. Adaptive check: skill regression
-    regression_msg = check_regression_and_update_skill(email)
-
-    return jsonify({
-        "message": "Drill results submitted and routine generated.",
-        "skill_level": skill_level,
-        "routine": routine,
-        "regression_check": regression_msg
-    }), 200
-
-
-#  Regression Logic
-def check_regression_and_update_skill(email):
-    player_ref = db.collection("players").document(email)
-    player_data = player_ref.get().to_dict()
-
-    if not player_data:
-        return "Player not found for regression check."
-
-    current_level = player_data.get("skill_level", "Beginner")
-    position = player_data.get("position")
-    
-    levels = ["Amateur", "Beginner", "Intermediate", "Advanced", "Professional"]
-    current_index = levels.index(current_level)
-
-    drills_map = get_drills_map()
-
-    today = datetime.utcnow().date()
-    low_days = 0
-
-    for i in range(3):
-        check_day = (today - timedelta(days=i)).strftime("%A")
-        doc_id = f"{email}_{check_day}"
-        result_doc = db.collection("dailyResults").document(doc_id).get()
-        if result_doc.exists:
-            try:
-                scores = result_doc.to_dict().get("results", {}).values()
-                numeric_scores = list(map(int, scores))
-                avg = sum(numeric_scores) / len(numeric_scores)
-                if avg < 40:
-                    low_days += 1
-            except:
-                continue
-
-    if low_days >= 3 and current_index > 0:
-        new_level = levels[current_index - 1]
-        new_drills = drills_map.get(position, {}).get(new_level, ["General Drills"])
-        new_routine = {}
-        weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        for i in range(14):
-            new_routine[f"Day {i+1} - {weekdays[i % 7]}"] = new_drills
-
-        player_ref.update({
-            "skill_level": new_level,
-            "routine": new_routine
-        })
-
-        return f"⏬ Player regressed to {new_level} after 3 consecutive low-score days."
-
-    return "✅ No regression needed."
-
 
 def determine_badges(player_data, new_xp, streak_count):
     badges = set(player_data.get("badges", []))  # Ensure unique badges
     total_drills = len(player_data.get("results", []))
 
-    # Volume-based
     if total_drills >= 10:
         badges.add("🏅 10 Drills")
     if total_drills >= 25:
@@ -565,19 +467,16 @@ def determine_badges(player_data, new_xp, streak_count):
     if total_drills >= 50:
         badges.add("🥇 50 Drills")
 
-    # XP Milestones
     if new_xp >= 500:
         badges.add("🌟 Rising Star")
     if new_xp >= 1000:
         badges.add("🚀 Prodigy")
 
-    # Streak-based
     if streak_count >= 3:
         badges.add("🔥 3-Day Streak")
     if streak_count >= 7:
         badges.add("🔥🔥 7-Day Streak")
 
-    # Surprise badge logic (example)
     if total_drills == 13:
         badges.add("🎁 Lucky 13")
 
@@ -626,39 +525,14 @@ def submit_daily_results():
 
         new_results = existing_results + [str(score) for score in results.values()]
         current_xp = int(player_data.get("xp", 0))
-        position = player_data.get("position", "Unknown")
+        
         skill_level = player_data.get("skill_level", "Beginner")
 
         # 🏅 Calculate new badges
         updated_badge_list = determine_badges(player_data, current_xp + xp_gained, streak_count=1)
 
         # 🎯 Update 14-day routine
-        drills_map = {
-        "Guard": {
-            "Amateur": ["Wall Passing", "Pivoting Basics", "Bounce Drills"],
-            "Beginner": ["Form Shooting", "Stationary Dribbling", "Layups"],
-            "Intermediate": ["Catch & Shoot", "Speed Dribbling", "Floaters"],
-            "Advanced": ["3-Point Shooting", "Pick-and-Roll", "Fast Break Offense"],
-            "Professional": ["Iso Step-back 3s", "Elite Pick-and-Roll", "Game Simulations"]
-        },
-        "Forward": {
-            "Amateur": ["Jump Stops", "Chest Pass Basics", "Pivot Footwork"],
-            "Beginner": ["Post Entries", "Jump Stops", "Backboard Layups"],
-            "Intermediate": ["Spin Move Finishes", "Baseline Cuts", "Help Defense"],
-            "Advanced": ["Isolation Scoring", "Mid-Post Fadeaways", "Transition Defense"],
-            "Professional": ["Elite Rebounding", "Wing Isolation Reads", "Advanced Pick Defense"]
-        },
-        "Center": {
-            "Amateur": ["Pivoting in Post", "Wall Shots", "Simple Rebounds"],
-            "Beginner": ["Drop Steps", "Rebounding Form", "Close-Range Shots"],
-            "Intermediate": ["Hook Shots", "Outlet Passes", "Post Defense"],
-            "Advanced": ["Advanced Post Moves", "Shot Blocking", "Pick & Roll Defense"],
-            "Professional": ["Back-to-Basket Mastery", "Defensive Anchor Reads", "Transition Rim Runs"]
-        }
-                }
-
-        base_drills = drills_map.get(position, {}).get(skill_level, ["General Drills"])
-        routine = {f"Day {i+1} - {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][i % 7]}": base_drills for i in range(14)}
+        routine = generate_skill_based_routine_by_level(skill_level, days=14)
 
         player_ref.update({
             "xp": current_xp + xp_gained,
@@ -687,7 +561,7 @@ def submit_daily_results():
         "day": today,
         "results": results,
         "xp_gained": xp_gained,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "badges": updated_badge_list
     })
 
@@ -696,41 +570,6 @@ def submit_daily_results():
         "xp_gained": xp_gained,
         "skill_update": skill_msg
     }), 200
-
-
-
-def get_gpt_response(message):
-    try:
-        client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a basketball training assistant."},
-                {"role": "user", "content": message}
-            ]
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        print("❌ GPT error:", e)
-        return "⚠️ I'm having trouble thinking right now. Try again soon!"
-
-
-# --- GET ALL PLAYERS ---
-@app.route("/players", methods=["GET"])
-def fetch_players():
-    players = get_players()
-    return jsonify([
-        {
-            "id": p[0], 
-            "name": p[1],
-            "position": p[2],
-            "skill_level": p[3],
-            "shooting_accuracy": p[4],
-            "dribbling_skill": p[5],
-            "finishing_skill": p[6]
-        } for p in players
-    ])
 
 @app.route("/chatbot_category", methods=["POST"])
 def chatbot_category():
@@ -804,29 +643,6 @@ def chatbot_query():
 
     return jsonify({"response": response})
 
-
-
-# --- GET AI TRAINING ROUTINE FROM ai_engine.py ---
-@app.route("/training/<int:player_id>", methods=["GET"])
-def fetch_training_routine(player_id):
-    routine = get_ai_recommendations(player_id)
-    return jsonify(routine)
-
-# --- LOG DAILY WORKOUT ---
-@app.route("/log_training", methods=["POST"])
-def log_training():
-    data = request.json
-    player_id = data.get("player_id")
-    shooting = data.get("shooting_accuracy")
-    dribbling = data.get("dribbling_skill")
-    finishing = data.get("finishing_skill")
-
-    if None in [player_id, shooting, dribbling, finishing]:
-        return jsonify({"error": "Missing required fields"}), 400
-
-    log_workout(player_id, shooting, dribbling, finishing)
-    return jsonify({"message": "Training log added"}), 201
-
 @app.route("/leaderboard", methods=["GET"])
 def leaderboard():
     players_ref = db.collection("players")
@@ -850,8 +666,17 @@ def leaderboard():
         name = data.get("name", "Unknown")
         xp = data.get("xp", 0)
         level = (xp // 500) + 1
-        results = data.get("results", [])
-        average_score = sum(map(float, results)) / len(results) if results else 0
+        raw_results = data.get("results", [])
+
+        # ✅ Filter out non-numeric results
+        numeric_results = []
+        for x in raw_results:
+            try:
+                numeric_results.append(float(x))
+            except ValueError:
+                continue
+
+        average_score = sum(numeric_results) / len(numeric_results) if numeric_results else 0
 
         # Count unique days active
         day_query = results_ref.where("email", "==", data.get("email"))
@@ -863,19 +688,25 @@ def leaderboard():
             result_data = d.to_dict()
             day_set.add(result_data.get("day"))
 
-            # Parse timestamp safely
             submitted_date = result_data.get("timestamp")
             if submitted_date:
                 ts_date = parser.isoparse(submitted_date).date()
                 if week_start <= ts_date <= today:
                     drill_scores = result_data.get("results", {}).values()
-                    numeric_scores = list(map(int, drill_scores))
-                    avg = sum(numeric_scores) / len(numeric_scores)
-                    weekly_scores.append(avg)
 
-                    # Top performer today
-                    if ts_date == today:
-                        if xp > top_today_xp:
+                    # ✅ Safely convert scores to int, skip if not valid
+                    valid_scores = []
+                    for val in drill_scores:
+                        try:
+                            valid_scores.append(int(val))
+                        except:
+                            continue
+
+                    if valid_scores:
+                        avg = sum(valid_scores) / len(valid_scores)
+                        weekly_scores.append(avg)
+
+                        if ts_date == today and xp > top_today_xp:
                             top_today = {"name": name, "xp": xp}
                             top_today_xp = xp
 
@@ -901,6 +732,7 @@ def leaderboard():
         "top_performer_today": top_today,
         "top_performer_week": top_week
     })
+
 
 @app.route("/delete_profile", methods=["POST"])
 def delete_profile():
@@ -930,10 +762,7 @@ def delete_profile():
         return jsonify({"error": f"Failed to delete profile: {str(e)}"}), 500
 
 
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
-from io import BytesIO
-from flask import send_file
+
 
 @app.route("/export_profile", methods=["GET"])
 def export_profile():
@@ -957,13 +786,10 @@ def export_profile():
         y -= 20
         c.drawString(30, y, f"Email: {email}")
         y -= 20
-        c.drawString(30, y, f"Position: {profile.get('position', '')}")
-        y -= 20
         c.drawString(30, y, f"Skill Level: {profile.get('skill_level', '')}")
         y -= 20
         c.drawString(30, y, f"XP: {profile.get('xp', 0)}")
         y -= 40
-
         c.drawString(30, y, "Drill Results:")
         y -= 20
 
@@ -1073,22 +899,18 @@ def player_question():
 
     return jsonify({"response": "🤔 I didn’t understand that. Try asking about XP, level, badges, drills, or results."})
 
-
-
-# --- ASSESS NEW PLAYER & SAVE TO DB ---
 @app.route("/assess_player", methods=["POST"])
 def assess_and_add_player():
     data = request.json
     name = data.get("name")
-    position = data.get("position")
     shooting = data.get("shooting_accuracy")
     dribbling = data.get("dribbling_skill")
     finishing = data.get("finishing_skill")
 
-    if None in [name, position, shooting, dribbling, finishing]:
+    if None in [name, shooting, dribbling, finishing]:
         return jsonify({"error": "Missing required fields"}), 400
 
-    result = add_new_player(name, position, shooting, dribbling, finishing)
+    result = add_new_player(name,shooting, dribbling, finishing)
     return jsonify(result), 201
 
 def send_daily_reminders():

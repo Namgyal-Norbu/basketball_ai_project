@@ -59,38 +59,38 @@ function Navbar() {
 
   return (
     <nav className="navbar">
-      <a href="/" className="logo">🏀 Basketball AI Routine Creator</a>
-
-
-      <div className="nav-links">
-        <a href="/">Home</a>
-        <a href="/drill-test">Daily Drills</a>
-        <a href="/submit-drills">Submit Test Drills</a>
-        <a href="/leaderboard">Leaderboard</a>
-        <a href="/progress">Progress</a>
-        <a href="/how-to-use">How to Use</a>
-      </div>
-
-      <div className="auth-section">
-        {user ? (
-          <img
-            src={user.photoURL}
-            alt="Profile"
-            className="profile-pic"
-            title="Click to log out"
-            onClick={handleLogout}
-          />
-        ) : (
-          <button
-            onClick={handleLogin}
-            className="login-btn"
-            disabled={loading}
-          >
-            {loading ? "Logging in..." : "Login"}
-          </button>
-        )}
-      </div>
-    </nav>
+    <a href="/" className="logo">🏀 Basketball AI Routine Creator</a>
+  
+    <div className="nav-links">
+      <a href="/">Home</a>
+      <a href="/drill-test">Daily Drills</a>
+      <a href="/submit-drills">Submit Test Drills</a>
+      <a href="/leaderboard">Leaderboard</a>
+      <a href="/progress">Progress</a>
+      <a href="/how-to-use">How to Use</a>
+    </div>
+  
+    <div className="auth-section">
+      {user ? (
+        <img
+          src={user.photoURL}
+          alt="Profile"
+          className="profile-pic"
+          title="Click to log out"
+          onClick={handleLogout}
+        />
+      ) : (
+        <button
+          onClick={handleLogin}
+          className="login-btn"
+          disabled={loading}
+        >
+          {loading ? "Logging in..." : "Login"}
+        </button>
+      )}
+    </div>
+  </nav>
+  
   );
 }
 
