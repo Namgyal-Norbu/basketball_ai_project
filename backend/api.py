@@ -1,4 +1,3 @@
-
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import firebase_admin
@@ -26,7 +25,7 @@ load_dotenv()
 
 skill_drill_bank = {
     "shooting": {
-        "Amateur": ["Form Shooting", "Spot Shots"],
+        "Amateur": ["Form Shooting", "Spot Shots", "Free Throws"],
         "Beginner": ["Catch & Shoot", "Bank Shots"],
         "Intermediate": ["Pull-Up Jumpers", "Off-Dribble 3s"],
         "Advanced": ["Step-back 3s", "Curl Screens"],
@@ -113,6 +112,8 @@ def build_drill_to_skill_map():
 drill_to_skill = build_drill_to_skill_map()
 
 
+
+
 def generate_skill_based_routine_by_level(skill_level, days=14):
     routine = {}
     weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -132,6 +133,7 @@ def generate_skill_based_routine_by_level(skill_level, days=14):
 
     return routine
 
+
 def send_email_reminder(to_email, subject, player_name):
     from_email = os.getenv("GMAIL_USER")
     password = os.getenv("GMAIL_PASS")
@@ -143,7 +145,8 @@ def send_email_reminder(to_email, subject, player_name):
         return False
 
     routine = player_doc.to_dict().get("routine", {})
-    drills_today = routine.get(today_day, ["No drills assigned."])
+    matching_day_key = next((k for k in routine if today_day in k), None)
+    drills_today = routine.get(matching_day_key, ["No drills assigned."])   
 
     drills_list_html = "".join(f"<li>{drill}</li>" for drill in drills_today)
 
@@ -206,64 +209,6 @@ def faq_manual_bot():
     
     return jsonify({"response": "🤔 I'm not sure about that. Try asking about drills, XP, or leveling up."})
 
-def check_skill_change(email, today_day_name):
-    player_ref = db.collection("players").document(email)
-    player_data = player_ref.get().to_dict()
-
-    if not player_data:
-        return "Player not found for skill check."
-
-    current_level = player_data.get("skill_level", "Beginner")
-   
-    levels = ["Amateur", "Beginner", "Intermediate", "Advanced", "Professional"]
-    current_index = levels.index(current_level)
-
-    # simulate relative days from mocked day
-    weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    today_index = weekdays.index(today_day_name)
-
-    low_days = 0
-    high_days = 0
-
-    for i in range(3):
-        check_day = weekdays[(today_index - i) % 7]
-        doc_id = f"{email}_{check_day}"
-        result_doc = db.collection("dailyResults").document(doc_id).get()
-        if result_doc.exists:
-            try:
-                scores = result_doc.to_dict().get("results", {}).values()
-                numeric_scores = list(map(int, scores))
-                avg = sum(numeric_scores) / len(numeric_scores)
-                if avg < 40:
-                    low_days += 1
-                elif avg > 85:
-                    high_days += 1
-            except:
-                continue
-
-  
-    if low_days >= 3 and current_index > 0:
-        new_level = levels[current_index - 1]
-        
-        new_routine = generate_skill_based_routine_by_level(new_level)
-        player_ref.update({
-            "skill_level": new_level,
-            "routine": new_routine
-        })
-        return f"⏬ Regressed to {new_level} after 3 poor days."
-
-   
-    if high_days >= 3 and current_index < len(levels) - 1:
-        new_level = levels[current_index + 1]
-        
-        new_routine = generate_skill_based_routine_by_level(new_level)
-        player_ref.update({
-            "skill_level": new_level,
-            "routine": new_routine
-        })
-        return f"⬆️ Promoted to {new_level} after 3 great days!"
-
-    return "✅ No skill level change needed."
 
 
 @app.route("/skill_drill_bank", methods=["GET"])
@@ -368,6 +313,71 @@ def assess_skill_weighted():
         "message": f"🎯 Weighted performance score: {round(weighted_score, 2)}"
     })
 
+def check_skill_change(email, today_day_name):
+    player_ref = db.collection("players").document(email)
+    player_data = player_ref.get().to_dict()
+
+    if not player_data:
+        return "Player not found for skill check."
+
+    current_level = player_data.get("skill_level", "Beginner")
+    levels = ["Amateur", "Beginner", "Intermediate", "Advanced", "Professional"]
+    current_index = levels.index(current_level)
+
+    weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    today_index = weekdays.index(today_day_name)
+
+    low_days = 0
+    high_days = 0
+
+    
+
+    for i in range(3):
+        check_day = weekdays[(today_index - i) % 7]
+        doc_id = f"{email}_{check_day}"
+        result_doc = db.collection("dailyResults").document(doc_id).get()
+
+        if result_doc.exists:
+            try:
+                scores = result_doc.to_dict().get("results", {}).values()
+                numeric_scores = list(map(int, scores))
+                avg = sum(numeric_scores) / len(numeric_scores)
+                print(f"✅ {check_day}: {list(scores)} → Avg: {avg}")
+
+                if avg < 40:
+                    low_days += 1
+                elif avg > 85:
+                    high_days += 1
+            except Exception as e:
+                print(f"⚠️ Error processing {check_day}: {e}")
+                continue
+        else:
+            print(f"❌ No data for {check_day}")
+
+    # Skill level down
+    if low_days >= 3 and current_index > 0:
+        new_level = levels[current_index - 1]
+        new_routine = generate_skill_based_routine_by_level(new_level)
+        player_ref.update({
+            "skill_level": new_level,
+            "routine": new_routine
+        })
+        print(f"⏬ Regressed to {new_level}")
+        return f"⏬ Regressed to {new_level} after 3 poor days."
+
+    # Skill level up
+    if high_days >= 3 and current_index < len(levels) - 1:
+        new_level = levels[current_index + 1]
+        new_routine = generate_skill_based_routine_by_level(new_level)
+        player_ref.update({
+            "skill_level": new_level,
+            "routine": new_routine
+        })
+        print(f"⬆️ Promoted to {new_level}")
+        return f"⬆️ Promoted to {new_level} after 3 great days!"
+
+    print("📊 No change in skill level")
+    return "✅ No skill level change needed."
 
 @app.route("/submit_test_results", methods=["POST"])
 def submit_test_results():
@@ -390,37 +400,9 @@ def submit_test_results():
     if doc.to_dict().get("test_completed"):
         return jsonify({"error": "Test already submitted. You can't take it again."}), 403
 
-    # 🔁 Map drills to skills
-    drill_to_skill = {
-        "Zig-Zag Dribble": "ball_handling",
-        "Closeouts": "defense",
-        "Contested Layups": "finishing",
-        "Jump Stops": "footwork",
-        "Free Throws": "shooting"
-    }
-
-    # 🎯 Use weighted scoring
-    weights = {
-        "shooting": 0.274,
-        "ball_handling": 0.267,
-        "defense": 0.219,
-        "finishing": 0.137,
-        "footwork": 0.104
-    }
-
-    # Aggregate drill scores into skill scores
-    skill_scores = {k: 0 for k in weights.keys()}
-    try:
-        for drill_name, score in results.items():
-            skill = drill_to_skill.get(drill_name)
-            if skill:
-                skill_scores[skill] = int(score)
-    except Exception as e:
-        return jsonify({"error": f"Failed to parse results: {e}"}), 400
-
-    weighted_score = sum(skill_scores[skill] * weights[skill] for skill in weights)
-
-    # 🧠 Skill classification
+    weighted_score = round(calculate_weighted_score(results), 2)
+    print(f"🎯 Final Weighted Score: {weighted_score}")
+   
     if weighted_score >= 90:
         skill_level = "Professional"
     elif weighted_score >= 70:
@@ -432,23 +414,27 @@ def submit_test_results():
     else:
         skill_level = "Amateur"
 
-    # ✅ Generate routine using skill-based drill bank (not "General Drills")
     full_routine = generate_skill_based_routine_by_level(skill_level, days=14)
 
-    # 💾 Save player profile to Firestore
-    player_ref.update({
-        "name": name,
-        "email": email,
-        "results": results,  # original test results
-        "skill_level": skill_level,
-        "routine": full_routine,
-        "test_completed": True,
-        "show_on_leaderboard": show_on_leaderboard,
-        "wants_email_reminders": wants_email_reminders,
-        "badges": [],
-        "days_per_week": days_per_week
-    })
+    badges = determine_badges({
+        "results": list(results.values()),
+        "badges": []
+    }, new_xp=0, streak_count=1)
 
+    player_ref.update({
+    "name": name,
+    "email": email,
+    "results": results,
+    "skill_level": skill_level,
+    "routine": full_routine,
+    "test_completed": True,
+    "show_on_leaderboard": show_on_leaderboard,
+    "wants_email_reminders": wants_email_reminders,
+    "badges": badges,  # 👈 now directly storing list, not nested object
+    "days_per_week": days_per_week
+})
+
+    print("Raw submitted results:", results)
     return jsonify({
         "message": f"🎯 Results submitted. {name} is classified as {skill_level}.",
         "skill_level": skill_level,
@@ -459,6 +445,9 @@ def submit_test_results():
 def determine_badges(player_data, new_xp, streak_count):
     badges = set(player_data.get("badges", []))  # Ensure unique badges
     total_drills = len(player_data.get("results", []))
+
+    if total_drills >=5:
+        badges.add("🏅 5 drills")
 
     if total_drills >= 10:
         badges.add("🏅 10 Drills")
@@ -483,6 +472,36 @@ def determine_badges(player_data, new_xp, streak_count):
     return list(badges)
 
 
+def calculate_weighted_score(results):
+    weights = {
+        "shooting": 0.274,
+        "ball_handling": 0.267,
+        "defense": 0.219,
+        "finishing": 0.137,
+        "footwork": 0.104
+    }
+
+    skill_scores = {skill: [] for skill in weights}
+
+    for drill, score in results.items():
+        skill = drill_to_skill.get(drill)
+        if skill:
+            try:
+                skill_scores[skill].append(round(float(score)))
+            except:
+                continue
+
+
+    weighted_score = 0
+    for skill, scores in skill_scores.items():
+            print(f"{skill}: {scores}")
+            if scores:
+                avg = sum(scores) / len(scores)
+                weighted_score += avg * weights[skill]
+
+    return round(weighted_score, 2)
+
+
 @app.route("/submit_daily_results", methods=["POST"])
 def submit_daily_results():
     data = request.json
@@ -505,8 +524,9 @@ def submit_daily_results():
         }), 409  # 409 Conflict
 
     # XP calculation
-    total_score = sum(int(score) for score in results.values() if str(score).isdigit())
-    xp_gained = total_score * 5
+    weighted_score = calculate_weighted_score(results)
+    xp_gained = int(weighted_score * 5)
+
 
     # Update player profile
     player_ref = db.collection("players").document(email)
@@ -529,7 +549,8 @@ def submit_daily_results():
         skill_level = player_data.get("skill_level", "Beginner")
 
         # 🏅 Calculate new badges
-        updated_badge_list = determine_badges(player_data, current_xp + xp_gained, streak_count=1)
+        temp_player_data = {**player_data, "results": new_results}
+        updated_badge_list = determine_badges(temp_player_data, current_xp + xp_gained, streak_count=1)
 
         # 🎯 Update 14-day routine
         routine = generate_skill_based_routine_by_level(skill_level, days=14)
@@ -542,7 +563,7 @@ def submit_daily_results():
         })
 
         # 🔁 Check if skill should change
-        skill_msg = check_skill_change(email, today)
+        
 
     else:
         # First-time player
@@ -564,12 +585,16 @@ def submit_daily_results():
         "timestamp": datetime.now(UTC).isoformat(),
         "badges": updated_badge_list
     })
+    
+    skill_msg = check_skill_change(email, today)
 
     return jsonify({
         "message": f"✅ Results submitted successfully. You earned {xp_gained} XP!",
         "xp_gained": xp_gained,
+        "weighted_score": weighted_score,
         "skill_update": skill_msg
-    }), 200
+}), 200
+
 
 @app.route("/chatbot_category", methods=["POST"])
 def chatbot_category():
@@ -606,15 +631,20 @@ def chatbot_query():
     subcategory = data.get("subcategory")
     email = data.get("email", None)
 
-    normalized_sub = "".join(c for c in subcategory.lower() if c.isalnum())
+    normalized_sub = (
+    "".join(c for c in subcategory.lower() if c.isalnum()) if subcategory else ""
+)
 
     
     if email:
         player_ref = db.collection("players").document(email)
         doc = player_ref.get()
-        if doc.exists:
-            player = doc.to_dict()
-            today = datetime.utcnow().strftime("%A")
+        if not doc.exists:
+            return jsonify({"response": "❌ Player not found."}), 404
+
+        player = doc.to_dict()
+        today = datetime.utcnow().strftime("%A")
+
 
         if normalized_sub in ["xp"]:
             return jsonify({"response": f"💪 You currently have {player.get('xp', 0)} XP."})
@@ -935,6 +965,6 @@ def run_scheduler():
 threading.Thread(target=run_scheduler, daemon=True).start()
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5000)
 
 

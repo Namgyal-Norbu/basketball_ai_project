@@ -10,29 +10,26 @@ function Home() {
   const [streak, setStreak] = useState(0);
   const [badges, setBadges] = useState([]);
 
-
   const xpToNextLevel = 500;
 
   const handleDownloadData = async () => {
     try {
-      const res = await fetch(`http://127.0.0.1:5000/export_profile?email=${user.email}`)
+      const res = await fetch(`http://127.0.0.1:5000/export_profile?email=${user.email}`);
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `${user.displayName.toLowerCase()}_data.pdf`;
-
       a.click();
     } catch (err) {
       alert("⚠️ Failed to download data");
     }
   };
-  
-  
+
   const handleDeleteProfile = async () => {
     const confirmed = window.confirm("Are you sure you want to permanently delete your profile?");
     if (!confirmed) return;
-  
+
     try {
       const res = await fetch("http://127.0.0.1:5000/delete_profile", {
         method: "POST",
@@ -46,7 +43,6 @@ function Home() {
       alert("❌ Error deleting profile");
     }
   };
-  
 
   useEffect(() => {
     if (!user) return;
@@ -65,7 +61,7 @@ function Home() {
 
         setXp(xpInCurrentLevel);
         setLevel(playerLevel);
-        setBadges(generateBadges(data));
+        setBadges(data.badges || []); // ✅ Pull badges directly from backend
       }
     };
 
@@ -82,13 +78,6 @@ function Home() {
     fetchDailyStreak();
   }, [user]);
 
-  const generateBadges = (data) => {
-    const b = [];
-    if ((data.results || []).length >= 10) b.push("🏅 10 Drills");
-    if ((data.skill_level || "") === "Advanced") b.push("🥇 Advanced Level");
-    return b;
-  };
-
   const progressPercent = Math.min((xp / xpToNextLevel) * 100 || 0, 100);
 
   if (!user) {
@@ -104,7 +93,6 @@ function Home() {
     <div className="container">
       <h2>🏀 Welcome Back, {user.displayName}!</h2>
 
-      
       <div className="card xp-container">
         <h3>🎯 Level {level}</h3>
         <div className="xp-bar">
@@ -113,13 +101,11 @@ function Home() {
         </div>
       </div>
 
-   
       <div className="card">
         <h3>🔥 Daily Streak</h3>
         <p>{streak} days in a row</p>
       </div>
 
-      {/* Badges */}
       <div className="card">
         <h3>🏆 Badges Earned</h3>
         {badges.length > 0 ? (
@@ -132,23 +118,24 @@ function Home() {
           <p>No badges yet</p>
         )}
       </div>
+
       <div className="card">
-  <h3>🔐 Privacy Controls</h3>
-  <button
-    className="danger-button"
-    onClick={handleDownloadData}
-    style={{ backgroundColor: "#007bff", marginBottom: "10px" }}
-  >
-    📥 Download My Data
-  </button>
-  <button
-    className="danger-button"
-    onClick={handleDeleteProfile}
-    style={{ backgroundColor: "#dc3545" }}
-  >
-    ❌ Delete My Profile
-  </button>
-</div>
+        <h3>🔐 Privacy Controls</h3>
+        <button
+          className="danger-button"
+          onClick={handleDownloadData}
+          style={{ backgroundColor: "#007bff", marginBottom: "10px" }}
+        >
+          📥 Download My Data
+        </button>
+        <button
+          className="danger-button"
+          onClick={handleDeleteProfile}
+          style={{ backgroundColor: "#dc3545" }}
+        >
+          ❌ Delete My Profile
+        </button>
+      </div>
     </div>
   );
 }
