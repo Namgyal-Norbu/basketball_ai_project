@@ -25,39 +25,34 @@ load_dotenv()
 
 skill_drill_bank = {
     "shooting": {
-        "Amateur": ["Form Shooting", "Spot Shots", "Free Throws"],
-        "Beginner": ["Catch & Shoot", "Bank Shots"],
-        "Intermediate": ["Pull-Up Jumpers", "Off-Dribble 3s"],
-        "Advanced": ["Step-back 3s", "Curl Screens"],
-        "Professional": ["Shooting Under Pressure", "Deep Range Shooting"]
+        "Beginner": ["Form Shooting Without Jumping", "Bank Shots"],
+        "Intermediate": ["Free Throws", "Shooting Of A Pass"],
+        "Advanced": ["Two Hand Shooting From Hop", "Curl Screens"],
+        "Professional": ["50 Make 1 Miss Shooting", "Deep Range Shooting"]
     },
     "ball_handling": {
-        "Amateur": ["Cone Dribbles", "Stationary Crossovers"],
-        "Beginner": ["Zig-Zag Dribble", "Two-Ball Dribble"],
-        "Intermediate": ["Change-of-Pace Moves", "Speed Dribbling"],
-        "Advanced": ["Behind-the-Back Sequences", "Crossover & Finish"],
-        "Professional": ["Elite Combo Moves", "Game Speed Dribbling"]
+        "Beginner": ["Cone Dribble", "Cross Over Dribble"],
+        "Intermediate": ["Hesistation Dribble", "Rhythm Dribbling" ],
+        "Advanced": ["Crossover With Resistance", "Retreat Crossover Dribble", "Zig-Zag Dribble"],
+        "Professional": ["Zigzag One-on-One", "Half Spin Hesistation vs Screen"]
     },
     "defense": {
-        "Amateur": ["Defensive Slides", "Hands Up Drill"],
-        "Beginner": ["Closeouts", "Shuffle Slides"],
-        "Intermediate": ["1v1 Defense", "Help Defense Rotations"],
-        "Advanced": ["Switch Defense", "Trap Rotations"],
+        "Beginner": ["Defensive Stance", "Stance Slide"],
+        "Intermediate": ["Closeouts", "Deny The Ball"],
+        "Advanced": ["Defending Ball Screen", "Rotation Defense"],
         "Professional": ["Elite Recovery", "Defensive Read & React"]
     },
     "finishing": {
-        "Amateur": ["Basic Layups", "Mikan Drill"],
-        "Beginner": ["Contested Layups", "Reverse Layups"],
+        "Beginner": ["Right Side Layup", "Left Side Layup"],
         "Intermediate": ["Floaters", "Inside Hand Finish"],
-        "Advanced": ["Euro Step", "Spin Finish"],
-        "Professional": ["Body Contact Finishing", "And-1 Simulation"]
+        "Advanced": ["Floater", "Mikan Drill", "Contested Layups"],
+        "Professional": ["Attack From Pick And Roll", "Basket Cut To Wing"]
     },
     "footwork": {
-        "Amateur": ["Jump Stops", "Triple Threat Position"],
-        "Beginner": ["Pivot Series", "Footwork Squares"],
-        "Intermediate": ["Ladder Drills", "Shot Preparation"],
-        "Advanced": ["Up-and-Under Footwork", "Turnarounds"],
-        "Professional": ["Pro Jab Sequences", "Advanced Footwork Counters"]
+        "Beginner": ["Squaring Up", "Full-Court Zig Zag"],
+        "Intermediate": ["Ladder Drills", "Dribble Pivot Pass", "Jump Stops"],
+        "Advanced": ["Box Drills", "Stallcup Sweep Drill"],
+        "Professional": ["Reverse Pivot Jab Rip Attack", "Advanced Footwork Counters"]
     }
 }
 
@@ -95,7 +90,7 @@ chatbot_knowledge_base = {
     }
 }
 
-# Only initialize Firebase once
+
 if not firebase_admin._apps:
     cred = credentials.Certificate("basketball-c918a-firebase-adminsdk-fbsvc-f831bd2577.json")
     firebase_admin.initialize_app(cred)
@@ -110,9 +105,6 @@ def build_drill_to_skill_map():
                 mapping[drill] = skill
     return mapping
 drill_to_skill = build_drill_to_skill_map()
-
-
-
 
 def generate_skill_based_routine_by_level(skill_level, days=14):
     routine = {}
@@ -138,7 +130,6 @@ def send_email_reminder(to_email, subject, player_name):
     from_email = os.getenv("GMAIL_USER")
     password = os.getenv("GMAIL_PASS")
 
-    # 🔍 Fetch today's drills
     today_day = datetime.utcnow().strftime("%A")
     player_doc = db.collection("players").document(to_email).get()
     if not player_doc.exists:
@@ -250,7 +241,6 @@ def generate_drill_test():
         "test_completed": False
     }, merge=True)
 
-    # Categorized test drills
     test_drills = {
         "shooting": ["Free Throws"],
         "ball_handling": ["Zig-Zag Dribble"],
@@ -273,7 +263,7 @@ def player_status():
 
     doc = db.collection("players").document(email).get()
     if not doc.exists:
-        return jsonify({"test_completed": False})  # <— still safe if missing
+        return jsonify({"test_completed": False})
 
     return jsonify({
         "test_completed": doc.to_dict().get("test_completed", False)
@@ -284,8 +274,6 @@ def player_status():
 def assess_skill_weighted():
     print("🎯 POST request received for /assess_skill_weighted")
     data = request.get_json()
-
-    # Normalized weights excluding "passing"
     weights = {
         "shooting": 0.274,
         "ball_handling": 0.267,
@@ -321,7 +309,7 @@ def check_skill_change(email, today_day_name):
         return "Player not found for skill check."
 
     current_level = player_data.get("skill_level", "Beginner")
-    levels = ["Amateur", "Beginner", "Intermediate", "Advanced", "Professional"]
+    levels = ["Beginner", "Intermediate", "Advanced", "Professional"]
     current_index = levels.index(current_level)
 
     weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -329,8 +317,6 @@ def check_skill_change(email, today_day_name):
 
     low_days = 0
     high_days = 0
-
-    
 
     for i in range(3):
         check_day = weekdays[(today_index - i) % 7]
@@ -354,7 +340,6 @@ def check_skill_change(email, today_day_name):
         else:
             print(f"❌ No data for {check_day}")
 
-    # Skill level down
     if low_days >= 3 and current_index > 0:
         new_level = levels[current_index - 1]
         new_routine = generate_skill_based_routine_by_level(new_level)
@@ -365,7 +350,6 @@ def check_skill_change(email, today_day_name):
         print(f"⏬ Regressed to {new_level}")
         return f"⏬ Regressed to {new_level} after 3 poor days."
 
-    # Skill level up
     if high_days >= 3 and current_index < len(levels) - 1:
         new_level = levels[current_index + 1]
         new_routine = generate_skill_based_routine_by_level(new_level)
@@ -384,10 +368,10 @@ def submit_test_results():
     data = request.json
     email = data.get("email")
     name = data.get("name")
-    results = data.get("results")  # expects drill name -> score
+    results = data.get("results")  
     show_on_leaderboard = data.get("show_on_leaderboard", False)
     wants_email_reminders = data.get("wants_email_reminders", False)
-    days_per_week = int(data.get("days_per_week", 7))  # Default to 7
+    days_per_week = int(data.get("days_per_week", 7))  
 
     if not name or not results or not email:
         return jsonify({"error": "Missing name, email, or results"}), 400
@@ -409,10 +393,8 @@ def submit_test_results():
         skill_level = "Advanced"
     elif weighted_score >= 50:
         skill_level = "Intermediate"
-    elif weighted_score >= 30:
-        skill_level = "Beginner"
     else:
-        skill_level = "Amateur"
+        skill_level = "Beginner"
 
     full_routine = generate_skill_based_routine_by_level(skill_level, days=14)
 
@@ -430,7 +412,7 @@ def submit_test_results():
     "test_completed": True,
     "show_on_leaderboard": show_on_leaderboard,
     "wants_email_reminders": wants_email_reminders,
-    "badges": badges,  # 👈 now directly storing list, not nested object
+    "badges": badges,  
     "days_per_week": days_per_week
 })
 
@@ -443,7 +425,7 @@ def submit_test_results():
     })
 
 def determine_badges(player_data, new_xp, streak_count):
-    badges = set(player_data.get("badges", []))  # Ensure unique badges
+    badges = set(player_data.get("badges", []))  
     total_drills = len(player_data.get("results", []))
 
     if total_drills >=5:
@@ -517,13 +499,12 @@ def submit_daily_results():
     doc_id = f"{email}_{today}"
     result_ref = db.collection("dailyResults").document(doc_id)
 
-    # Prevent duplicate submission
+
     if result_ref.get().exists:
         return jsonify({
             "error": f"🚫 You've already submitted results for {today}."
         }), 409  # 409 Conflict
 
-    # XP calculation
     weighted_score = calculate_weighted_score(results)
     xp_gained = int(weighted_score * 5)
 
@@ -548,11 +529,10 @@ def submit_daily_results():
         
         skill_level = player_data.get("skill_level", "Beginner")
 
-        # 🏅 Calculate new badges
         temp_player_data = {**player_data, "results": new_results}
         updated_badge_list = determine_badges(temp_player_data, current_xp + xp_gained, streak_count=1)
 
-        # 🎯 Update 14-day routine
+      
         routine = generate_skill_based_routine_by_level(skill_level, days=14)
 
         player_ref.update({
@@ -562,11 +542,8 @@ def submit_daily_results():
             "badges": updated_badge_list
         })
 
-        # 🔁 Check if skill should change
-        
-
     else:
-        # First-time player
+      
         player_ref.set({
             "name": name,
             "email": email,
@@ -575,7 +552,6 @@ def submit_daily_results():
             "badges": [],
         })
 
-    # Save daily result
     result_ref.set({
         "name": name,
         "email": email,
@@ -662,7 +638,7 @@ def chatbot_query():
             drills = routine.get(matching_day, [])
             return jsonify({"response": f"📋 Your drills for today ({today}) are: {', '.join(drills) if drills else 'No drills found.'}"})
 
-    # 2. General FAQ lookup
+    
     category_map = chatbot_knowledge_base.get(category)
     if not category_map:
         return jsonify({"response": "❌ Unknown category."}), 404
@@ -680,7 +656,7 @@ def leaderboard():
 
     players = []
     today = date.today()
-    week_start = today - timedelta(days=today.weekday())  # Monday
+    week_start = today - timedelta(days=today.weekday())  
 
     top_today = None
     top_today_xp = 0
@@ -698,7 +674,7 @@ def leaderboard():
         level = (xp // 500) + 1
         raw_results = data.get("results", [])
 
-        # ✅ Filter out non-numeric results
+       
         numeric_results = []
         for x in raw_results:
             try:
@@ -708,7 +684,7 @@ def leaderboard():
 
         average_score = sum(numeric_results) / len(numeric_results) if numeric_results else 0
 
-        # Count unique days active
+       
         day_query = results_ref.where("email", "==", data.get("email"))
         day_docs = day_query.stream()
         day_set = set()
@@ -724,7 +700,6 @@ def leaderboard():
                 if week_start <= ts_date <= today:
                     drill_scores = result_data.get("results", {}).values()
 
-                    # ✅ Safely convert scores to int, skip if not valid
                     valid_scores = []
                     for val in drill_scores:
                         try:
@@ -754,7 +729,6 @@ def leaderboard():
             "top_week_score": max_week_score
         })
 
-    # Sort leaderboard
     players.sort(key=lambda x: (-x["top_week_score"], -x["xp"]))
 
     return jsonify({
@@ -774,7 +748,7 @@ def delete_profile():
         return jsonify({"error": "Missing player name"}), 400
 
     try:
-        name = name.lower()  # Normalize casing
+        name = name.lower()  
         print(f"🔍 Deleting player: {name}")
 
         email = data.get("email")
@@ -790,9 +764,6 @@ def delete_profile():
     except Exception as e:
         print(f"❌ Error during deletion: {e}")
         return jsonify({"error": f"Failed to delete profile: {str(e)}"}), 500
-
-
-
 
 @app.route("/export_profile", methods=["GET"])
 def export_profile():
@@ -866,11 +837,9 @@ def export_player_data():
 
     data = player_doc.to_dict()
 
-    # Include daily results
     daily_results = db.collection("dailyResults").where("email", "==", data.get("email")).stream()
     data["daily_results"] = [doc.to_dict() for doc in daily_results]
 
-    # Serve as a downloadable JSON file
     json_data = json.dumps(data, indent=2)
     return Response(
         json_data,
@@ -898,7 +867,7 @@ def player_question():
     result_id = f"{email}_{today}"
     result_doc = db.collection("dailyResults").document(result_id).get()
 
-    # 🌟 Match question patterns
+   
     if "xp" in question:
         return jsonify({"response": f"💪 You currently have {player.get('xp', 0)} XP."})
 
@@ -911,7 +880,6 @@ def player_question():
 
     if "drill" in question and "today" in question:
         routine_dict = player.get("routine", {})
-        # Look for the key that contains today's day
         matching_day = next((key for key in routine_dict if today in key), None)
         if matching_day:
             drills = routine_dict[matching_day]
@@ -953,10 +921,8 @@ def send_daily_reminders():
             subject = "📬 Your Daily Basketball Drill Routine"
             send_email_reminder(email, subject, name)
 
-# Schedule to run at 8 AM daily
 schedule.every().day.at("08:00").do(send_daily_reminders)
 
-# Background thread to keep schedule running
 def run_scheduler():
     while True:
         schedule.run_pending()
