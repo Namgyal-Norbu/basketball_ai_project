@@ -264,3 +264,153 @@ button:hover {
   padding: 6px 10px;
   font-size: 14px;
 }
+
+/* Drill Test Styling */
+.test-form {
+  margin-top: 30px;
+  text-align: left;
+}
+
+.test-header {
+  font-size: 26px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Unified Drill Card Styling */
+.drill-card {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-left: 5px solid #28a745;
+  border-radius: 10px;
+  padding: 20px 22px;
+  margin-bottom: 25px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.drill-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.drill-card h4 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #222;
+  margin-bottom: 4px;
+}
+
+.drill-card em {
+  font-size: 14px;
+  font-style: italic;
+  color: #e67e22; /* orange tone */
+  margin-bottom: 10px;
+  display: block;
+}
+
+.drill-card p {
+  font-size: 14px;
+  color: #444;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.drill-card input[type="number"] {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 15px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  transition: border 0.3s ease;
+}
+
+.drill-card input[type="number"]:focus {
+  border-color: #28a745;
+  outline: none;
+}
+
+.drill-card input::placeholder {
+  color: #999;
+  font-size: 14px;
+}
+
+
+/* Submit Button */
+.submit-btn {
+  background: linear-gradient(90deg, #28a745, #219653);
+  color: white;
+  padding: 12px 18px;
+  font-size: 18px;
+  border: none;
+  border-radius: 6px;
+  margin-top: 20px;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.3s ease;
+}
+
+.submit-btn:hover {
+  background: linear-gradient(90deg, #218838, #1e7e34);
+}
+
+/* Enhanced Drill Routine Cards */
+.enhanced-drill-card {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-left: 5px solid #28a745;
+  border-radius: 10px;
+  padding: 20px 22px;
+  margin-bottom: 25px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.enhanced-drill-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.drill-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.drill-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #222;
+  margin: 0;
+}
+
+.drill-reps {
+  font-size: 14px;
+  color: #888;
+  font-style: italic;
+  margin: 0;
+}
+
+.drill-description {
+  font-size: 14px;
+  color: #555;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.drill-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 15px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  transition: border 0.3s ease;
+}
+
+.drill-input:focus {
+  border-color: #28a745;
+  outline: none;
+}

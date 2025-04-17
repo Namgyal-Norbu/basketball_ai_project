@@ -28,33 +28,35 @@ skill_drill_bank = {
         "Beginner": ["Form Shooting Without Jumping", "Bank Shots"],
         "Intermediate": ["Free Throws", "Shooting Of A Pass"],
         "Advanced": ["Two Hand Shooting From Hop", "Curl Screens"],
-        "Professional": ["50 Make 1 Miss Shooting", "Deep Range Shooting"]
+        "Professional": ["Step Back", "Deep Range Shooting"]
     },
     "ball_handling": {
-        "Beginner": ["Cone Dribble", "Cross Over Dribble"],
-        "Intermediate": ["Hesistation Dribble", "Rhythm Dribbling" ],
-        "Advanced": ["Crossover With Resistance", "Retreat Crossover Dribble", "Zig-Zag Dribble"],
-        "Professional": ["Zigzag One-on-One", "Half Spin Hesistation vs Screen"]
+        "Beginner": ["Cone Dribble", "Cross Over Dribble and Finish"],
+        "Intermediate": ["Hesistation Dribble And Finish", "Rhythm Dribbling and Finish" ],
+        "Advanced": ["Crossover With Resistance and Finish", "Retreat Crossover Dribble and Finish", ],
+        "Professional": ["Zigzag One-on-One and Finish", "Half Spin Hesistation vs Screen and Finish"]
     },
     "defense": {
-        "Beginner": ["Defensive Stance", "Stance Slide"],
-        "Intermediate": ["Closeouts", "Deny The Ball"],
-        "Advanced": ["Defending Ball Screen", "Rotation Defense"],
-        "Professional": ["Elite Recovery", "Defensive Read & React"]
+        "Beginner": ["Wall Closeouts", "Slide & Recover", "Closeouts"],
+        "Intermediate": ["Mirror Slides", "Recovery Sprint Challenge"],
+        "Advanced": ["Defensive Lane Denial", "Ball Screen Navigation"],
+        "Professional": ["1v1 Containment Drill", "Defensive Read & React"]
+    },
+    "footwork": {
+        "Beginner": ["Jump Stop & Pivot", "Line Hops", "Jump Stops"],
+        "Intermediate": ["Figure 8 Footwork", "Crossover Drop Steps"],
+        "Advanced": ["Box Drills", "Stallcup Sweep Drill"],
+        "Professional": ["Reverse Pivot Jab Rip", "Closeout to Slide Combo"]
     },
     "finishing": {
         "Beginner": ["Right Side Layup", "Left Side Layup"],
         "Intermediate": ["Floaters", "Inside Hand Finish"],
-        "Advanced": ["Floater", "Mikan Drill", "Contested Layups"],
+        "Advanced": ["Mikan Drill", "Contested Layups"],
         "Professional": ["Attack From Pick And Roll", "Basket Cut To Wing"]
-    },
-    "footwork": {
-        "Beginner": ["Squaring Up", "Full-Court Zig Zag"],
-        "Intermediate": ["Ladder Drills", "Dribble Pivot Pass", "Jump Stops"],
-        "Advanced": ["Box Drills", "Stallcup Sweep Drill"],
-        "Professional": ["Reverse Pivot Jab Rip Attack", "Advanced Footwork Counters"]
     }
+   
 }
+
 
 faq_knowledge_base = {
     "how do I improve my shooting?": "Practice form shooting daily and focus on footwork.",
@@ -175,7 +177,8 @@ def send_email_reminder(to_email, subject, player_name):
         return False
     
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000"]}}, supports_credentials=True)
+
 
 
 @app.route("/faq_manual", methods=["POST"])
@@ -224,8 +227,402 @@ def send_reminder():
     else:
         return jsonify({"error": "Failed to send reminder"}), 500
 
+drill_details = {
+    "Free Throws": {
+        "reps": "10 shots",
+        "description": "Score 1 point for each made free throw."
+    },
+    "Cross Over Dribble and Finish": {
+        "reps": "10 reps",
+        "description": "Score 1 point per successful dribble + finish without losing control."
+    },
+    "Closeouts": {
+        "reps": "10 reps",
+        "description": "Score 1 point per correct closeout (sprint > chop steps > high hands)."
+    },
+    "Contested Layups": {
+        "reps": "10 reps",
+        "description": "Score 1 point for each made layup under contact or distraction."
+    },
+    "Jump Stops": {
+        "reps": "10 stops",
+        "description": "Score 1 point for each controlled jump stop with balance."
+    },
+    "Form Shooting Without Jumping": {
+        "reps": "10 makes from 5 spots",
+        "description": (
+            "1 point per clean make:\n"
+            "- Focus on shooting mechanics (elbow, wrist, follow-through)\n"
+            "- Stay balanced and consistent\n"
+            "- No jumping allowed"
+        )
+    },
 
-@app.route("/generate_drill_test", methods=["POST"])
+    "Bank Shots": {
+        "reps": "10 makes from each side of the lane",
+        "description": (
+            "1 point per successful bank shot:\n"
+            "- Use the backboard from proper angles\n"
+            "- Consistent foot placement\n"
+            "- Focus on soft touch off glass"
+        )
+    },
+
+    # 🟡 Intermediate Shooting
+    "Free Throws": {
+        "reps": "10 shots",
+        "description": (
+            "1 point per made free throw:\n"
+            "- Use proper shooting routine\n"
+            "- Hold follow-through\n"
+            "- Stay focused under pressure"
+        )
+    },
+    "Shooting Of A Pass": {
+        "reps": "10 catch-and-shoot reps",
+        "description": (
+            "1 point per make:\n"
+            "- Catch ball in rhythm\n"
+            "- Quick release\n"
+            "- Maintain shooting form"
+        )
+    },
+
+    # 🔵 Advanced Shooting
+    "Two Hand Shooting From Hop": {
+        "reps": "10 makes off hop",
+        "description": (
+            "1 point per clean make:\n"
+            "- Hop into shooting stance\n"
+            "- Square shoulders on catch\n"
+            "- Explode upward with balanced base"
+        )
+    },
+    "Curl Screens": {
+        "reps": "10 reps off screen",
+        "description": (
+            "1 point per made shot:\n"
+            "- Simulate curling off a screen\n"
+            "- Square up quickly\n"
+            "- Control footwork and shot speed"
+        )
+    },
+
+    # 🟣 Professional Shooting
+    "Step Back": {
+        "reps": "10 reps per side",
+        "description": (
+            "1 point per made step-back:\n"
+            "- Create space with quick step back\n"
+            "- Maintain balance\n"
+            "- Use sharp footwork and full extension"
+        )
+    },
+    "Deep Range Shooting": {
+        "reps": "10 deep shots",
+        "description": (
+            "1 point per make beyond the 3-point line:\n"
+            "- Maintain proper shooting mechanics\n"
+            "- Stay balanced with legs under shot\n"
+            "- No forced throws or breakdown in form"
+        )
+    },
+
+    "Cone Dribble": {
+        "reps": "3 sets of 5 cones",
+        "description": (
+            "1 point per clean run:\n"
+            "- Navigate through cones without losing control\n"
+            "- Use both hands\n"
+            "- Stay low and tight with the ball"
+        )
+    },
+    "Cross Over Dribble and Finish": {
+        "reps": "10 reps",
+        "description": (
+            "1 point per successful rep:\n"
+            "- Execute crossover smoothly\n"
+            "- Maintain control while finishing at the rim\n"
+            "- Use both hands equally"
+        )
+    },
+
+    # 🟠 Intermediate Ball Handling
+    "Hesistation Dribble And Finish": {
+        "reps": "10 reps",
+        "description": (
+            "1 point per complete rep:\n"
+            "- Sell hesitation with body & eyes\n"
+            "- Burst past defender and finish\n"
+            "- Alternate hands each rep"
+        )
+    },
+    "Rhythm Dribbling and Finish": {
+        "reps": "10 reps",
+        "description": (
+            "1 point per successful rep:\n"
+            "- Perform rhythm dribble sequence (cross, behind, etc.)\n"
+            "- Finish strong at the basket\n"
+            "- Focus on timing and control"
+        )
+    },
+
+    # 🔴 Advanced Ball Handling
+    "Crossover With Resistance and Finish": {
+        "reps": "8 reps against a partner or resistance band",
+        "description": (
+            "1 point per powerful crossover:\n"
+            "- Stay low with tight handle\n"
+            "- Use explosive move to beat defender\n"
+            "- Finish with control"
+        )
+    },
+    "Retreat Crossover Dribble and Finish": {
+        "reps": "10 reps",
+        "description": (
+            "1 point per smooth retreat-to-attack:\n"
+            "- Retreat dribble to create space\n"
+            "- Quick crossover and aggressive finish\n"
+            "- Maintain balance and poise"
+        )
+    },
+
+    # 🟣 Professional Ball Handling
+    "Zigzag One-on-One and Finish": {
+        "reps": "6 full-court zigzags",
+        "description": (
+            "1 point per clean sequence:\n"
+            "- Alternate between sharp direction changes\n"
+            "- Simulate defender pressure\n"
+            "- Explode to finish after last cut"
+        )
+    },
+    "Half Spin Hesistation vs Screen and Finish": {
+        "reps": "10 reps",
+        "description": (
+            "1 point per well-executed rep:\n"
+            "- Use half spin to freeze defender\n"
+            "- Navigate screen with control\n"
+            "- Finish strong at basket"
+        )
+    },
+    "Right Side Layup": {
+        "reps": "10 reps",
+        "description": (
+            "1 point per clean make:\n"
+            "- Use right hand and right foot timing\n"
+            "- Aim for the top corner of the backboard\n"
+            "- Smooth finish, no dribble bobble"
+        )
+    },
+    "Left Side Layup": {
+        "reps": "10 reps",
+        "description": (
+            "1 point per clean make:\n"
+            "- Use left hand and left foot timing\n"
+            "- Hit the correct angle on the backboard\n"
+            "- Controlled approach and finish"
+        )
+    },
+
+    # 🟠 Intermediate Finishing
+    "Floaters": {
+        "reps": "10 reps",
+        "description": (
+            "1 point per successful floater:\n"
+            "- Soft high-arching release over a defender\n"
+            "- Keep body under control\n"
+            "- Land on balance"
+        )
+    },
+    "Inside Hand Finish": {
+        "reps": "10 reps per side",
+        "description": (
+            "1 point per deceptive finish:\n"
+            "- Finish with opposite hand on same side\n"
+            "- Avoid shot blockers\n"
+            "- Shield with body"
+        )
+    },
+
+    # 🔴 Advanced Finishing
+    "Mikan Drill": {
+        "reps": "20 alternating finishes",
+        "description": (
+            "1 point per successful make:\n"
+            "- Quick footwork around rim\n"
+            "- No dribble, alternate hands\n"
+            "- Keep ball high, no pauses"
+        )
+    },
+    "Contested Layups": {
+        "reps": "10 reps with contact",
+        "description": (
+            "1 point per strong finish:\n"
+            "- Simulate defender contact\n"
+            "- Absorb bump and still convert\n"
+            "- Controlled body and focused finish"
+        )
+    },
+
+    # 🟣 Professional Finishing
+    "Attack From Pick And Roll": {
+        "reps": "8 reps each side",
+        "description": (
+            "1 point per efficient attack:\n"
+            "- Use screen correctly (reject or use)\n"
+            "- Read help and finish with best option\n"
+            "- Stay low and decisive"
+        )
+    },
+    "Basket Cut To Wing": {
+        "reps": "10 reps",
+        "description": (
+            "1 point per successful execution:\n"
+            "- Make a sharp cut from corner to wing\n"
+            "- Catch and finish in one motion\n"
+            "- Focus on timing and footwork"
+        )
+    },
+    # 🛡️ DEFENSE
+    "Wall Closeouts": {
+        "reps": "10 reps",
+        "description": (
+            "1 point per proper closeout:\n"
+            "- Sprint to wall, breakdown with choppy steps\n"
+            "- Hands up, balanced, no lunging"
+        )
+    },
+    "Slide & Recover": {
+        "reps": "10 slide-sprint cycles",
+        "description": (
+            "1 point per correct sequence:\n"
+            "- Slide left/right to cone\n"
+            "- Sprint to recover cone\n"
+            "- Maintain defensive stance"
+        )
+    },
+    "Mirror Slides": {
+        "reps": "10 rounds with a partner or reflection",
+        "description": (
+            "1 point per successful mirror:\n"
+            "- Match movement without crossing feet\n"
+            "- Stay low, maintain distance"
+        )
+    },
+    "Recovery Sprint Challenge": {
+        "reps": "10 reps",
+        "description": (
+            "1 point per sprint-slide combo:\n"
+            "- Sprint to touch cone\n"
+            "- Slide back in stance to baseline"
+        )
+    },
+    "Defensive Lane Denial": {
+        "reps": "10 reps against imaginary cutter",
+        "description": (
+            "1 point per correct denial:\n"
+            "- Arm bar + inside foot positioning\n"
+            "- No backpedaling or spinning"
+        )
+    },
+    "Ball Screen Navigation": {
+        "reps": "10 on-screen reps",
+        "description": (
+            "1 point per successful navigation:\n"
+            "- Go over/under correctly\n"
+            "- Maintain contact with screener"
+        )
+    },
+    "1v1 Containment Drill": {
+        "reps": "10 reps vs partner or shadow",
+        "description": (
+            "1 point for successful containment:\n"
+            "- No blow-bys for 3 seconds\n"
+            "- Stay square and on balance"
+        )
+    },
+    "Defensive Read & React": {
+        "reps": "10 reps from coach command",
+        "description": (
+            "1 point per correct reaction:\n"
+            "- React to cue (help, rotate, closeout)\n"
+            "- Decision speed under 1.5 seconds"
+        )
+    },
+
+    # 👣 FOOTWORK
+    "Jump Stop & Pivot": {
+        "reps": "10 reps per foot",
+        "description": (
+            "1 point per clean sequence:\n"
+            "- Controlled jump stop\n"
+            "- Legal pivot without travel"
+        )
+    },
+    "Line Hops": {
+        "reps": "30 seconds x 3 rounds",
+        "description": (
+            "1 point per 10 hops:\n"
+            "- Quick feet\n"
+            "- Both feet clear line"
+        )
+    },
+    "Figure 8 Footwork": {
+        "reps": "10 continuous loops",
+        "description": (
+            "1 point per loop:\n"
+            "- Stay low, sharp cuts\n"
+            "- Don’t step outside cones"
+        )
+    },
+    "Crossover Drop Steps": {
+        "reps": "10 reps each direction",
+        "description": (
+            "1 point per fluid rep:\n"
+            "- Low stance, controlled crossover\n"
+            "- Explosive drop step"
+        )
+    },
+    "Box Drills": {
+        "reps": "5 clockwise + 5 counter-clockwise laps",
+        "description": (
+            "1 point per lap:\n"
+            "- Hit all four corners\n"
+            "- Quick first step, sharp cuts"
+        )
+    },
+    "Stallcup Sweep Drill": {
+        "reps": "10 sweeps",
+        "description": (
+            "1 point per sweep:\n"
+            "- Stay low with wide stance\n"
+            "- Clean foot replacement\n"
+            "- Don’t travel"
+        )
+    },
+    "Reverse Pivot Jab Rip": {
+        "reps": "10 reps each side",
+        "description": (
+            "1 point per rep:\n"
+            "- Reverse pivot cleanly\n"
+            "- Jab + rip low and sharp"
+        )
+    },
+    "Closeout to Slide Combo": {
+        "reps": "10 reps",
+        "description": (
+            "1 point per sequence:\n"
+            "- Closeout with control\n"
+            "- Immediate slide left or right\n"
+            "- Hands up entire time"
+        )
+    },
+}
+
+
+@app.route("/generate_drill_test", methods=["POST", "OPTIONS"])
+@cross_origin(origins="http://localhost:3000")
 def generate_drill_test():
     data = request.json
     name = data.get("name")
@@ -241,17 +638,27 @@ def generate_drill_test():
         "test_completed": False
     }, merge=True)
 
+    # Basic test drills
     test_drills = {
         "shooting": ["Free Throws"],
-        "ball_handling": ["Zig-Zag Dribble"],
-        "defense": ["Closeouts",],
-        "finishing": ["Contested Layups",],
-        "footwork": ["Jump Stops", ]
+        "ball_handling": ["Cross Over Dribble and Finish"],
+        "defense": ["Closeouts"],
+        "finishing": ["Contested Layups"],
+        "footwork": ["Jump Stops"]
     }
+
+    # Return enriched drill data
+    enriched = {}
+    for skill, drills in test_drills.items():
+        enriched[skill] = [{
+            "name": drill,
+            "reps": drill_details.get(drill, {}).get("reps", ""),
+            "description": drill_details.get(drill, {}).get("description", "")
+        } for drill in drills]
 
     return jsonify({
         "message": f"Test drills generated for {name}.",
-        "drills": test_drills
+        "drills": enriched
     })
 
 
@@ -342,7 +749,9 @@ def check_skill_change(email, today_day_name):
 
     if low_days >= 3 and current_index > 0:
         new_level = levels[current_index - 1]
-        new_routine = generate_skill_based_routine_by_level(new_level)
+        raw_routine = generate_skill_based_routine_by_level(new_level)
+        new_routine = enrich_routine(raw_routine)
+
         player_ref.update({
             "skill_level": new_level,
             "routine": new_routine
@@ -352,7 +761,8 @@ def check_skill_change(email, today_day_name):
 
     if high_days >= 3 and current_index < len(levels) - 1:
         new_level = levels[current_index + 1]
-        new_routine = generate_skill_based_routine_by_level(new_level)
+        raw_routine = generate_skill_based_routine_by_level(new_level)
+        new_routine = enrich_routine(raw_routine)
         player_ref.update({
             "skill_level": new_level,
             "routine": new_routine
@@ -362,6 +772,49 @@ def check_skill_change(email, today_day_name):
 
     print("📊 No change in skill level")
     return "✅ No skill level change needed."
+
+
+def enrich_routine(routine):
+    enriched = {}
+    for day, drills in routine.items():
+        enriched[day] = [
+            {
+                "name": drill,
+                "reps": drill_details.get(drill, {}).get("reps", "N/A"),
+                "description": drill_details.get(drill, {}).get("description", "No description available.")
+            }
+            for drill in drills
+        ]
+    return enriched
+
+@app.route("/get_routine", methods=["GET"])
+def get_routine():
+    email = request.args.get("email")
+    if not email:
+        return jsonify({"error": "Missing email"}), 400
+
+    player_doc = db.collection("players").document(email).get()
+    if not player_doc.exists:
+        return jsonify({"error": "Player not found"}), 404
+
+    player = player_doc.to_dict()
+    routine = player.get("routine", {})
+
+
+    enriched_routine = {}
+    for day, drills in routine.items():
+        enriched_routine[day] = [
+            {
+                "name": drill,
+                "reps": drill_details.get(drill, {}).get("reps", "N/A"),
+                "description": drill_details.get(drill, {}).get("description", "No description")
+            }
+            for drill in drills
+        ]
+
+    return jsonify({
+        "routine": enriched_routine
+    })
 
 @app.route("/submit_test_results", methods=["POST"])
 def submit_test_results():
@@ -396,7 +849,9 @@ def submit_test_results():
     else:
         skill_level = "Beginner"
 
-    full_routine = generate_skill_based_routine_by_level(skill_level, days=14)
+    raw_routine = generate_skill_based_routine_by_level(skill_level, days=14)
+    full_routine = enrich_routine(raw_routine)
+
 
     badges = determine_badges({
         "results": list(results.values()),
@@ -533,7 +988,8 @@ def submit_daily_results():
         updated_badge_list = determine_badges(temp_player_data, current_xp + xp_gained, streak_count=1)
 
       
-        routine = generate_skill_based_routine_by_level(skill_level, days=14)
+        raw_routine = generate_skill_based_routine_by_level(skill_level, days=14)
+        routine = enrich_routine(raw_routine)
 
         player_ref.update({
             "xp": current_xp + xp_gained,

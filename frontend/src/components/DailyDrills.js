@@ -11,46 +11,46 @@ function DrillTest({ user }) {
   const email = user?.email;
   const todayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
 
-  useEffect(() => {
-    const fetchTodaysDrills = async () => {
-      if (!email) return;
+  // ✅ Refactored into a reusable function
+  const loadTodayDrills = async () => {
+    if (!email) return;
 
-      try {
-        setLoading(true);
-        const ref = doc(db, "players", email);
-        const snap = await getDoc(ref);
+    try {
+      setLoading(true);
+      const ref = doc(db, "players", email);
+      const snap = await getDoc(ref);
 
-        if (snap.exists()) {
-          const data = snap.data();
-          const routine = data.routine || {};
-          const matchedKey = Object.keys(routine).find((key) =>
-            key.includes(todayName)
-          );
-          const todayRoutine = matchedKey ? routine[matchedKey] : [];
+      if (snap.exists()) {
+        const data = snap.data();
+        const routine = data.routine || {};
+        const matchedKey = Object.keys(routine).find((key) =>
+          key.includes(todayName)
+        );
+        const todayRoutine = matchedKey ? routine[matchedKey] : [];
 
-          setTodayDrills(todayRoutine);
+        setTodayDrills(todayRoutine);
 
-          const initialResults = {};
-          todayRoutine.forEach((drill) => {
-            initialResults[drill] = "";
-          });
-          setResults(initialResults);
-        } else {
-          setMessage("❌ Player not found in database.");
-        }
-      } catch (err) {
-        console.error("Error loading drills:", err);
-        setMessage("⚠️ Error fetching today's drills.");
-      } finally {
-        setLoading(false);
+        const initialResults = {};
+        todayRoutine.forEach((drill) => {
+          initialResults[drill.name] = "";
+        });
+        setResults(initialResults);
+      } else {
+        setMessage("❌ Player not found in database.");
       }
-    };
+    } catch (err) {
+      console.error("Error loading drills:", err);
+      setMessage("⚠️ Error fetching today's drills.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchTodaysDrills();
+  useEffect(() => {
+    loadTodayDrills();
   }, [email, todayName]);
 
   const handleResultSubmit = async () => {
-    // Validate all inputs are filled
     const allFilled = Object.values(results).every(val => val !== "" && !isNaN(val));
     if (!allFilled) {
       setMessage("🚫 Please enter a score for each drill.");
@@ -76,6 +76,7 @@ function DrillTest({ user }) {
       const data = await res.json();
       if (res.status === 200) {
         setMessage(data.message || "✅ Drill results submitted!");
+        loadTodayDrills(); // ✅ Reload enriched drill info
       } else {
         setMessage(data.error || "⚠️ Failed to submit results.");
       }
@@ -99,21 +100,25 @@ function DrillTest({ user }) {
             <>
               <div className="form-section">
                 {todayDrills.map((drill, idx) => (
-                  <div key={idx}>
-                    <label>{drill}</label>
+                  <div key={idx} className="drill-card enhanced-drill-card">
+                    <h3 className="drill-title">{drill.name}</h3>
+                    <p className="drill-reps"><em>📌 {drill.reps}</em></p>
+                    <p className="drill-description">{drill.description}</p>
                     <input
                       type="number"
+                      className="drill-input"
                       min="0"
                       max="100"
-                      placeholder="Enter score (0–100)"
-                      value={results[drill] || ""}
+                      placeholder="🏀 Enter score (0–100)"
+                      value={results[drill.name] || ""}
                       onChange={(e) =>
-                        setResults({ ...results, [drill]: e.target.value })
+                        setResults({ ...results, [drill.name]: e.target.value })
                       }
                     />
                   </div>
                 ))}
               </div>
+
               <button onClick={handleResultSubmit} disabled={todayDrills.length === 0}>
                 ✅ Submit Results
               </button>
