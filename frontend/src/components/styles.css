@@ -1,3 +1,11 @@
+:root {
+  --primary-green: #28a745;
+  --primary-green-dark: #218838;
+  --blue-gradient: linear-gradient(90deg, #00c6ff, #0072ff);
+  --green-gradient: linear-gradient(90deg, var(--primary-green), #219653);
+  --green-gradient-hover: linear-gradient(90deg, var(--primary-green-dark), #1e7e34);
+  --input-border: #ccc;
+}
 
 /* General Styling */
 body {
@@ -92,22 +100,21 @@ body {
   gap: 8px;
 }
 
+/* Inputs and Buttons */
 input,
 select,
 button {
   display: block;
   width: 100%;
-  padding: 10px 14px; 
+  padding: 10px 14px;
   margin: 10px 0;
-  border: 1px solid #ccc;
+  border: 1px solid var(--input-border);
   border-radius: 5px;
-  box-sizing: border-box; 
+  box-sizing: border-box;
 }
 
-
-/* Button */
 button {
-  background-color: #28a745;
+  background-color: var(--primary-green);
   color: white;
   font-size: 18px;
   cursor: pointer;
@@ -115,9 +122,10 @@ button {
 }
 
 button:hover {
-  background-color: #218838;
+  background-color: var(--primary-green-dark);
 }
 
+/* Cards */
 .card {
   margin: 20px auto;
   padding: 20px;
@@ -127,22 +135,43 @@ button:hover {
   box-shadow: 0 3px 8px rgba(0,0,0,0.1);
 }
 
-.progress-bar {
+/* Progress Bar */
+.progress-bar,
+.xp-bar {
   background: #eee;
   border-radius: 5px;
   overflow: hidden;
   height: 25px;
   margin-top: 10px;
+  position: relative;
 }
 
-.fill {
-  background: linear-gradient(90deg, #00c6ff, #0072ff);
+.fill,
+.xp-fill {
+  background: var(--blue-gradient);
   height: 100%;
-  color: white;
   text-align: center;
   line-height: 25px;
   font-weight: bold;
+  color: white;
+  transition: width 0.4s ease-in-out;
 }
+
+.xp-fill {
+  background: linear-gradient(to right, var(--primary-green), #66bb6a);
+}
+
+.xp-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: bold;
+  color: #000;
+  z-index: 1;
+}
+
+/* Leaderboard */
 .leaderboard-container {
   max-width: 650px;
   margin: 40px auto;
@@ -180,31 +209,7 @@ button:hover {
   border-bottom: 1px solid #f0f0f0;
 }
 
-.xp-container {
-  margin-bottom: 20px;
-  text-align: center;
-}
-
-.xp-bar {
-  width: 100%;
-  height: 30px;
-  background-color: #eee;
-  border-radius: 10px;
-  position: relative;
-  overflow: hidden;
-  margin-top: 10px;
-}
-
-.xp-fill {
-  background: linear-gradient(to right, #28a745, #66bb6a);
-  height: 100%;
-  border-radius: 10px;
-  transition: width 0.4s ease-in-out;
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 0;
-}
+/* Checkboxes */
 .checkbox-wrapper {
   display: flex;
   align-items: center;
@@ -217,7 +222,7 @@ button:hover {
 .checkbox-wrapper input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  accent-color: #4CAF50; /* green checkbox */
+  accent-color: var(--primary-green);
   cursor: pointer;
 }
 
@@ -225,18 +230,13 @@ button:hover {
   cursor: pointer;
 }
 
-
-.xp-text {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-weight: bold;
-  color: #000;
-  z-index: 1;
+/* Form Sections */
+.form-section {
+  padding: 0 20px;
 }
 
 .danger-button {
+  background-color: #dc3545;
   padding: 10px;
   font-size: 16px;
   color: white;
@@ -246,128 +246,39 @@ button:hover {
   cursor: pointer;
   transition: background-color 0.3s ease;
 }
-.form-section {
-  padding: 0 20px; 
-}
-
 
 .danger-button:hover {
   opacity: 0.9;
 }
+
+/* Filter Bar */
 .filter-bar {
   margin-bottom: 20px;
   display: flex;
   align-items: center;
   gap: 10px;
 }
+
 .filter-bar select {
   padding: 6px 10px;
   font-size: 14px;
 }
 
-/* Drill Test Styling */
-.test-form {
-  margin-top: 30px;
-  text-align: left;
-}
-
-.test-header {
-  font-size: 26px;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 20px;
-  text-align: center;
-}
-
-/* Unified Drill Card Styling */
-.drill-card {
-  background-color: #fff;
-  border: 1px solid #ddd;
-  border-left: 5px solid #28a745;
-  border-radius: 10px;
-  padding: 20px 22px;
-  margin-bottom: 25px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.drill-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.drill-card h4 {
-  font-size: 18px;
-  font-weight: 600;
-  color: #222;
-  margin-bottom: 4px;
-}
-
-.drill-card em {
-  font-size: 14px;
-  font-style: italic;
-  color: #e67e22; /* orange tone */
-  margin-bottom: 10px;
-  display: block;
-}
-
-.drill-card p {
-  font-size: 14px;
-  color: #444;
-  line-height: 1.5;
-  margin-bottom: 12px;
-}
-
-.drill-card input[type="number"] {
-  width: 100%;
-  padding: 10px 12px;
-  font-size: 15px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  transition: border 0.3s ease;
-}
-
-.drill-card input[type="number"]:focus {
-  border-color: #28a745;
-  outline: none;
-}
-
-.drill-card input::placeholder {
-  color: #999;
-  font-size: 14px;
-}
-
-
-/* Submit Button */
-.submit-btn {
-  background: linear-gradient(90deg, #28a745, #219653);
-  color: white;
-  padding: 12px 18px;
-  font-size: 18px;
-  border: none;
-  border-radius: 6px;
-  margin-top: 20px;
-  cursor: pointer;
-  width: 100%;
-  transition: background 0.3s ease;
-}
-
-.submit-btn:hover {
-  background: linear-gradient(90deg, #218838, #1e7e34);
-}
-
-/* Enhanced Drill Routine Cards */
+/* Drill Cards (used in both test and routine) */
+.drill-card,
 .enhanced-drill-card {
   background-color: #fff;
   border: 1px solid #ddd;
-  border-left: 5px solid #28a745;
+  border-left: 5px solid var(--primary-green);
   border-radius: 10px;
   padding: 20px 22px;
   margin-bottom: 25px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.06);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  text-align: left;
 }
 
+.drill-card:hover,
 .enhanced-drill-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
@@ -384,14 +295,12 @@ button:hover {
   font-size: 18px;
   font-weight: 600;
   color: #222;
-  margin: 0;
 }
 
 .drill-reps {
   font-size: 14px;
   color: #888;
   font-style: italic;
-  margin: 0;
 }
 
 .drill-description {
@@ -401,16 +310,41 @@ button:hover {
   margin-bottom: 12px;
 }
 
-.drill-input {
+.drill-input,
+.drill-card input[type="number"] {
   width: 100%;
   padding: 10px 12px;
   font-size: 15px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--input-border);
   border-radius: 6px;
   transition: border 0.3s ease;
 }
 
-.drill-input:focus {
-  border-color: #28a745;
+.drill-input:focus,
+.drill-card input[type="number"]:focus {
+  border-color: var(--primary-green);
   outline: none;
+}
+
+.drill-card input::placeholder {
+  color: #999;
+  font-size: 14px;
+}
+
+/* Submit Button */
+.submit-btn {
+  background: var(--green-gradient);
+  color: white;
+  padding: 12px 18px;
+  font-size: 18px;
+  border: none;
+  border-radius: 6px;
+  margin-top: 20px;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.3s ease;
+}
+
+.submit-btn:hover {
+  background: var(--green-gradient-hover);
 }

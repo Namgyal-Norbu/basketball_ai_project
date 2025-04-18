@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { db, doc, getDoc } from "../firebaseConfig";
 import "./styles.css";
 
 function DrillTest({ user }) {
@@ -7,37 +6,37 @@ function DrillTest({ user }) {
   const [results, setResults] = useState({});
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [routineDayLabel, setRoutineDayLabel] = useState("");
 
   const email = user?.email;
-  const todayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
 
-  // ✅ Refactored into a reusable function
   const loadTodayDrills = async () => {
     if (!email) return;
 
     try {
       setLoading(true);
-      const ref = doc(db, "players", email);
-      const snap = await getDoc(ref);
+      setMessage("");
 
-      if (snap.exists()) {
-        const data = snap.data();
-        const routine = data.routine || {};
-        const matchedKey = Object.keys(routine).find((key) =>
-          key.includes(todayName)
-        );
-        const todayRoutine = matchedKey ? routine[matchedKey] : [];
+      const res = await fetch(`http://localhost:5050/get_routine?email=${email}`);
+      const data = await res.json();
 
-        setTodayDrills(todayRoutine);
-
-        const initialResults = {};
-        todayRoutine.forEach((drill) => {
-          initialResults[drill.name] = "";
-        });
-        setResults(initialResults);
-      } else {
-        setMessage("❌ Player not found in database.");
+      // ✅ Handle error or message returned from the backend
+      if (data.error || data.message) {
+        setMessage(data.error || data.message);
+        setTodayDrills([]);
+        setRoutineDayLabel("");
+        return;
       }
+
+      const todayRoutine = data.drills || [];
+      setTodayDrills(todayRoutine);
+      setRoutineDayLabel(data.day || "");
+
+      const initialResults = {};
+      todayRoutine.forEach((drill) => {
+        initialResults[drill.name] = "";
+      });
+      setResults(initialResults);
     } catch (err) {
       console.error("Error loading drills:", err);
       setMessage("⚠️ Error fetching today's drills.");
@@ -48,7 +47,7 @@ function DrillTest({ user }) {
 
   useEffect(() => {
     loadTodayDrills();
-  }, [email, todayName]);
+  }, [email]);
 
   const handleResultSubmit = async () => {
     const allFilled = Object.values(results).every(val => val !== "" && !isNaN(val));
@@ -63,7 +62,7 @@ function DrillTest({ user }) {
     });
 
     try {
-      const res = await fetch("http://127.0.0.1:5000/submit_daily_results", {
+      const res = await fetch("http://localhost:5050/submit_daily_results", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -76,7 +75,7 @@ function DrillTest({ user }) {
       const data = await res.json();
       if (res.status === 200) {
         setMessage(data.message || "✅ Drill results submitted!");
-        loadTodayDrills(); // ✅ Reload enriched drill info
+        loadTodayDrills(); // Refresh drills in case it completes a day
       } else {
         setMessage(data.error || "⚠️ Failed to submit results.");
       }
@@ -88,7 +87,7 @@ function DrillTest({ user }) {
 
   return (
     <div className="container">
-      <h2>📅 Today's Routine ({todayName})</h2>
+      <h2>📅 Today's Routine {routineDayLabel && `(${routineDayLabel})`}</h2>
 
       {user ? (
         <>
@@ -119,7 +118,7 @@ function DrillTest({ user }) {
                 ))}
               </div>
 
-              <button onClick={handleResultSubmit} disabled={todayDrills.length === 0}>
+              <button onClick={handleResultSubmit}>
                 ✅ Submit Results
               </button>
             </>

@@ -26,7 +26,7 @@ function ProgressChart() {
   useEffect(() => {
     const fetchSkillDrillBank = async () => {
       try {
-        const res = await fetch("http://127.0.0.1:5000/skill_drill_bank");
+        const res = await fetch("http://127.0.0.1:5050/skill_drill_bank");
         const data = await res.json();
         const mapping = {};
 

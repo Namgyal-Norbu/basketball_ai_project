@@ -9,7 +9,7 @@ function Leaderboard() {
   const [category, setCategory] = useState("xp"); 
 
   useEffect(() => {
-    fetch("http://127.0.0.1:5000/leaderboard")
+    fetch("http://127.0.0.1:5050/leaderboard")
       .then((res) => res.json())
       .then((data) => {
         setLeaders(data.players || []);

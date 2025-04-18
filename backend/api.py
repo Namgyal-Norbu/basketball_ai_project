@@ -110,11 +110,11 @@ drill_to_skill = build_drill_to_skill_map()
 
 def generate_skill_based_routine_by_level(skill_level, days=14):
     routine = {}
-    weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    
     skill_categories = list(skill_drill_bank.keys())
 
     for i in range(days):
-        day_name = weekdays[i % 7]
+        day_key = f"Day {i+1}"
         drills_for_day = []
 
         for skill in skill_categories:
@@ -123,7 +123,7 @@ def generate_skill_based_routine_by_level(skill_level, days=14):
                 selected_drill = random.choice(drills_by_level)
                 drills_for_day.append(selected_drill)
 
-        routine[f"Day {i+1} - {day_name}"] = drills_for_day
+        routine[day_key] = drills_for_day
 
     return routine
 
@@ -138,10 +138,15 @@ def send_email_reminder(to_email, subject, player_name):
         return False
 
     routine = player_doc.to_dict().get("routine", {})
-    matching_day_key = next((k for k in routine if today_day in k), None)
+    progress = player_doc.to_dict().get("routine_progress", 1)
+    matching_day_key = f"Day {progress}"
+
     drills_today = routine.get(matching_day_key, ["No drills assigned."])   
 
-    drills_list_html = "".join(f"<li>{drill}</li>" for drill in drills_today)
+    drills_list_html = "".join(
+    f"<li>{drill['name'] if isinstance(drill, dict) else drill}</li>" for drill in drills_today
+)
+
 
     msg = MIMEMultipart("alternative")
     msg["From"] = from_email
@@ -177,7 +182,8 @@ def send_email_reminder(to_email, subject, player_name):
         return False
     
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000"]}}, supports_credentials=True)
+CORS(app) 
+
 
 
 
@@ -230,28 +236,28 @@ def send_reminder():
 drill_details = {
     "Free Throws": {
         "reps": "10 shots",
-        "description": "Score 1 point for each made free throw."
+        "description": "Score 10 point for each made free throw."
     },
     "Cross Over Dribble and Finish": {
         "reps": "10 reps",
-        "description": "Score 1 point per successful dribble + finish without losing control."
+        "description": "Score 10 point per successful dribble + finish without losing control."
     },
     "Closeouts": {
         "reps": "10 reps",
-        "description": "Score 1 point per correct closeout (sprint > chop steps > high hands)."
+        "description": "Score 10 point per correct closeout (sprint > chop steps > high hands)."
     },
     "Contested Layups": {
         "reps": "10 reps",
-        "description": "Score 1 point for each made layup under contact or distraction."
+        "description": "Score 10 point for each made layup under contact or distraction."
     },
     "Jump Stops": {
         "reps": "10 stops",
-        "description": "Score 1 point for each controlled jump stop with balance."
+        "description": "Score 10 point for each controlled jump stop with balance."
     },
     "Form Shooting Without Jumping": {
         "reps": "10 makes from 5 spots",
         "description": (
-            "1 point per clean make:\n"
+            "10 point per clean make:\n"
             "- Focus on shooting mechanics (elbow, wrist, follow-through)\n"
             "- Stay balanced and consistent\n"
             "- No jumping allowed"
@@ -261,18 +267,17 @@ drill_details = {
     "Bank Shots": {
         "reps": "10 makes from each side of the lane",
         "description": (
-            "1 point per successful bank shot:\n"
+            "10 point per successful bank shot:\n"
             "- Use the backboard from proper angles\n"
             "- Consistent foot placement\n"
             "- Focus on soft touch off glass"
         )
     },
 
-    # 🟡 Intermediate Shooting
     "Free Throws": {
         "reps": "10 shots",
         "description": (
-            "1 point per made free throw:\n"
+            "10 point per made free throw:\n"
             "- Use proper shooting routine\n"
             "- Hold follow-through\n"
             "- Stay focused under pressure"
@@ -281,18 +286,17 @@ drill_details = {
     "Shooting Of A Pass": {
         "reps": "10 catch-and-shoot reps",
         "description": (
-            "1 point per make:\n"
+            "10 point per make:\n"
             "- Catch ball in rhythm\n"
             "- Quick release\n"
             "- Maintain shooting form"
         )
     },
 
-    # 🔵 Advanced Shooting
     "Two Hand Shooting From Hop": {
         "reps": "10 makes off hop",
         "description": (
-            "1 point per clean make:\n"
+            "10 point per clean make:\n"
             "- Hop into shooting stance\n"
             "- Square shoulders on catch\n"
             "- Explode upward with balanced base"
@@ -301,18 +305,17 @@ drill_details = {
     "Curl Screens": {
         "reps": "10 reps off screen",
         "description": (
-            "1 point per made shot:\n"
+            "10 point per made shot:\n"
             "- Simulate curling off a screen\n"
             "- Square up quickly\n"
             "- Control footwork and shot speed"
         )
     },
 
-    # 🟣 Professional Shooting
     "Step Back": {
         "reps": "10 reps per side",
         "description": (
-            "1 point per made step-back:\n"
+            "10 point per made step-back:\n"
             "- Create space with quick step back\n"
             "- Maintain balance\n"
             "- Use sharp footwork and full extension"
@@ -321,7 +324,7 @@ drill_details = {
     "Deep Range Shooting": {
         "reps": "10 deep shots",
         "description": (
-            "1 point per make beyond the 3-point line:\n"
+            "10 point per make beyond the 3-point line:\n"
             "- Maintain proper shooting mechanics\n"
             "- Stay balanced with legs under shot\n"
             "- No forced throws or breakdown in form"
@@ -331,7 +334,7 @@ drill_details = {
     "Cone Dribble": {
         "reps": "3 sets of 5 cones",
         "description": (
-            "1 point per clean run:\n"
+            "10 point per clean run:\n"
             "- Navigate through cones without losing control\n"
             "- Use both hands\n"
             "- Stay low and tight with the ball"
@@ -340,18 +343,17 @@ drill_details = {
     "Cross Over Dribble and Finish": {
         "reps": "10 reps",
         "description": (
-            "1 point per successful rep:\n"
+            "10 point per successful rep:\n"
             "- Execute crossover smoothly\n"
             "- Maintain control while finishing at the rim\n"
             "- Use both hands equally"
         )
     },
 
-    # 🟠 Intermediate Ball Handling
     "Hesistation Dribble And Finish": {
         "reps": "10 reps",
         "description": (
-            "1 point per complete rep:\n"
+            "10 point per complete rep:\n"
             "- Sell hesitation with body & eyes\n"
             "- Burst past defender and finish\n"
             "- Alternate hands each rep"
@@ -360,18 +362,17 @@ drill_details = {
     "Rhythm Dribbling and Finish": {
         "reps": "10 reps",
         "description": (
-            "1 point per successful rep:\n"
+            "10 point per successful rep:\n"
             "- Perform rhythm dribble sequence (cross, behind, etc.)\n"
             "- Finish strong at the basket\n"
             "- Focus on timing and control"
         )
     },
 
-    # 🔴 Advanced Ball Handling
     "Crossover With Resistance and Finish": {
-        "reps": "8 reps against a partner or resistance band",
+        "reps": "10 reps against a partner or resistance band",
         "description": (
-            "1 point per powerful crossover:\n"
+            "10 point per powerful crossover:\n"
             "- Stay low with tight handle\n"
             "- Use explosive move to beat defender\n"
             "- Finish with control"
@@ -380,18 +381,17 @@ drill_details = {
     "Retreat Crossover Dribble and Finish": {
         "reps": "10 reps",
         "description": (
-            "1 point per smooth retreat-to-attack:\n"
+            "10 point per smooth retreat-to-attack:\n"
             "- Retreat dribble to create space\n"
             "- Quick crossover and aggressive finish\n"
             "- Maintain balance and poise"
         )
     },
 
-    # 🟣 Professional Ball Handling
     "Zigzag One-on-One and Finish": {
-        "reps": "6 full-court zigzags",
+        "reps": "10 full-court zigzags",
         "description": (
-            "1 point per clean sequence:\n"
+            "10 point per clean sequence:\n"
             "- Alternate between sharp direction changes\n"
             "- Simulate defender pressure\n"
             "- Explode to finish after last cut"
@@ -400,7 +400,7 @@ drill_details = {
     "Half Spin Hesistation vs Screen and Finish": {
         "reps": "10 reps",
         "description": (
-            "1 point per well-executed rep:\n"
+            "10 point per well-executed rep:\n"
             "- Use half spin to freeze defender\n"
             "- Navigate screen with control\n"
             "- Finish strong at basket"
@@ -409,7 +409,7 @@ drill_details = {
     "Right Side Layup": {
         "reps": "10 reps",
         "description": (
-            "1 point per clean make:\n"
+            "10 point per clean make:\n"
             "- Use right hand and right foot timing\n"
             "- Aim for the top corner of the backboard\n"
             "- Smooth finish, no dribble bobble"
@@ -418,7 +418,7 @@ drill_details = {
     "Left Side Layup": {
         "reps": "10 reps",
         "description": (
-            "1 point per clean make:\n"
+            "10 point per clean make:\n"
             "- Use left hand and left foot timing\n"
             "- Hit the correct angle on the backboard\n"
             "- Controlled approach and finish"
@@ -429,7 +429,7 @@ drill_details = {
     "Floaters": {
         "reps": "10 reps",
         "description": (
-            "1 point per successful floater:\n"
+            "10 point per successful floater:\n"
             "- Soft high-arching release over a defender\n"
             "- Keep body under control\n"
             "- Land on balance"
@@ -438,18 +438,17 @@ drill_details = {
     "Inside Hand Finish": {
         "reps": "10 reps per side",
         "description": (
-            "1 point per deceptive finish:\n"
+            "10 point per deceptive finish:\n"
             "- Finish with opposite hand on same side\n"
             "- Avoid shot blockers\n"
             "- Shield with body"
         )
     },
 
-    # 🔴 Advanced Finishing
     "Mikan Drill": {
         "reps": "20 alternating finishes",
         "description": (
-            "1 point per successful make:\n"
+            "10 point per successful make:\n"
             "- Quick footwork around rim\n"
             "- No dribble, alternate hands\n"
             "- Keep ball high, no pauses"
@@ -458,18 +457,17 @@ drill_details = {
     "Contested Layups": {
         "reps": "10 reps with contact",
         "description": (
-            "1 point per strong finish:\n"
+            "10 point per strong finish:\n"
             "- Simulate defender contact\n"
             "- Absorb bump and still convert\n"
             "- Controlled body and focused finish"
         )
     },
 
-    # 🟣 Professional Finishing
     "Attack From Pick And Roll": {
-        "reps": "8 reps each side",
+        "reps": "10 reps",
         "description": (
-            "1 point per efficient attack:\n"
+            "10 point per efficient attack:\n"
             "- Use screen correctly (reject or use)\n"
             "- Read help and finish with best option\n"
             "- Stay low and decisive"
@@ -478,17 +476,17 @@ drill_details = {
     "Basket Cut To Wing": {
         "reps": "10 reps",
         "description": (
-            "1 point per successful execution:\n"
+            "10 point per successful execution:\n"
             "- Make a sharp cut from corner to wing\n"
             "- Catch and finish in one motion\n"
             "- Focus on timing and footwork"
         )
     },
-    # 🛡️ DEFENSE
+
     "Wall Closeouts": {
         "reps": "10 reps",
         "description": (
-            "1 point per proper closeout:\n"
+            "10 point per proper closeout:\n"
             "- Sprint to wall, breakdown with choppy steps\n"
             "- Hands up, balanced, no lunging"
         )
@@ -496,7 +494,7 @@ drill_details = {
     "Slide & Recover": {
         "reps": "10 slide-sprint cycles",
         "description": (
-            "1 point per correct sequence:\n"
+            "10 point per correct sequence:\n"
             "- Slide left/right to cone\n"
             "- Sprint to recover cone\n"
             "- Maintain defensive stance"
@@ -505,7 +503,7 @@ drill_details = {
     "Mirror Slides": {
         "reps": "10 rounds with a partner or reflection",
         "description": (
-            "1 point per successful mirror:\n"
+            "10 point per successful mirror:\n"
             "- Match movement without crossing feet\n"
             "- Stay low, maintain distance"
         )
@@ -513,7 +511,7 @@ drill_details = {
     "Recovery Sprint Challenge": {
         "reps": "10 reps",
         "description": (
-            "1 point per sprint-slide combo:\n"
+            "10 point per sprint-slide combo:\n"
             "- Sprint to touch cone\n"
             "- Slide back in stance to baseline"
         )
@@ -521,7 +519,7 @@ drill_details = {
     "Defensive Lane Denial": {
         "reps": "10 reps against imaginary cutter",
         "description": (
-            "1 point per correct denial:\n"
+            "10 point per correct denial:\n"
             "- Arm bar + inside foot positioning\n"
             "- No backpedaling or spinning"
         )
@@ -529,7 +527,7 @@ drill_details = {
     "Ball Screen Navigation": {
         "reps": "10 on-screen reps",
         "description": (
-            "1 point per successful navigation:\n"
+            "10 point per successful navigation:\n"
             "- Go over/under correctly\n"
             "- Maintain contact with screener"
         )
@@ -537,7 +535,7 @@ drill_details = {
     "1v1 Containment Drill": {
         "reps": "10 reps vs partner or shadow",
         "description": (
-            "1 point for successful containment:\n"
+            "10 point for successful containment:\n"
             "- No blow-bys for 3 seconds\n"
             "- Stay square and on balance"
         )
@@ -545,17 +543,16 @@ drill_details = {
     "Defensive Read & React": {
         "reps": "10 reps from coach command",
         "description": (
-            "1 point per correct reaction:\n"
+            "10 point per correct reaction:\n"
             "- React to cue (help, rotate, closeout)\n"
             "- Decision speed under 1.5 seconds"
         )
     },
 
-    # 👣 FOOTWORK
     "Jump Stop & Pivot": {
         "reps": "10 reps per foot",
         "description": (
-            "1 point per clean sequence:\n"
+            "10 point per clean sequence:\n"
             "- Controlled jump stop\n"
             "- Legal pivot without travel"
         )
@@ -563,7 +560,7 @@ drill_details = {
     "Line Hops": {
         "reps": "30 seconds x 3 rounds",
         "description": (
-            "1 point per 10 hops:\n"
+            "10 point per 10 hops:\n"
             "- Quick feet\n"
             "- Both feet clear line"
         )
@@ -571,7 +568,7 @@ drill_details = {
     "Figure 8 Footwork": {
         "reps": "10 continuous loops",
         "description": (
-            "1 point per loop:\n"
+            "10 point per loop:\n"
             "- Stay low, sharp cuts\n"
             "- Don’t step outside cones"
         )
@@ -579,7 +576,7 @@ drill_details = {
     "Crossover Drop Steps": {
         "reps": "10 reps each direction",
         "description": (
-            "1 point per fluid rep:\n"
+            "10 point per fluid rep:\n"
             "- Low stance, controlled crossover\n"
             "- Explosive drop step"
         )
@@ -587,7 +584,7 @@ drill_details = {
     "Box Drills": {
         "reps": "5 clockwise + 5 counter-clockwise laps",
         "description": (
-            "1 point per lap:\n"
+            "10 point per lap:\n"
             "- Hit all four corners\n"
             "- Quick first step, sharp cuts"
         )
@@ -595,7 +592,7 @@ drill_details = {
     "Stallcup Sweep Drill": {
         "reps": "10 sweeps",
         "description": (
-            "1 point per sweep:\n"
+            "10 point per sweep:\n"
             "- Stay low with wide stance\n"
             "- Clean foot replacement\n"
             "- Don’t travel"
@@ -604,7 +601,7 @@ drill_details = {
     "Reverse Pivot Jab Rip": {
         "reps": "10 reps each side",
         "description": (
-            "1 point per rep:\n"
+            "10 point per rep:\n"
             "- Reverse pivot cleanly\n"
             "- Jab + rip low and sharp"
         )
@@ -612,7 +609,7 @@ drill_details = {
     "Closeout to Slide Combo": {
         "reps": "10 reps",
         "description": (
-            "1 point per sequence:\n"
+            "10 point per sequence:\n"
             "- Closeout with control\n"
             "- Immediate slide left or right\n"
             "- Hands up entire time"
@@ -708,7 +705,7 @@ def assess_skill_weighted():
         "message": f"🎯 Weighted performance score: {round(weighted_score, 2)}"
     })
 
-def check_skill_change(email, today_day_name):
+def check_skill_change_recent_submissions(email):
     player_ref = db.collection("players").document(email)
     player_data = player_ref.get().to_dict()
 
@@ -719,59 +716,70 @@ def check_skill_change(email, today_day_name):
     levels = ["Beginner", "Intermediate", "Advanced", "Professional"]
     current_index = levels.index(current_level)
 
-    weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    today_index = weekdays.index(today_day_name)
+    # Get the last 3 submission entries by timestamp
+    recent_entries = (
+        db.collection("dailyResults")
+        .where("email", "==", email)
+        .order_by("timestamp", direction=firestore.Query.DESCENDING)
+        .limit(3)
+        .stream()
+    )
 
-    low_days = 0
-    high_days = 0
+    recent_averages = []
+    for doc in recent_entries:
+        data = doc.to_dict()
+        scores = data.get("results", {}).values()
+        numeric_scores = [int(s) for s in scores if str(s).isdigit()]
+        if numeric_scores:
+            avg = sum(numeric_scores) / len(numeric_scores)
+            recent_averages.append(avg)
 
-    for i in range(3):
-        check_day = weekdays[(today_index - i) % 7]
-        doc_id = f"{email}_{check_day}"
-        result_doc = db.collection("dailyResults").document(doc_id).get()
+    if len(recent_averages) < 3:
+        return "✅ Waiting for 3 valid training submissions."
 
-        if result_doc.exists:
-            try:
-                scores = result_doc.to_dict().get("results", {}).values()
-                numeric_scores = list(map(int, scores))
-                avg = sum(numeric_scores) / len(numeric_scores)
-                print(f"✅ {check_day}: {list(scores)} → Avg: {avg}")
+    high_days = sum(1 for avg in recent_averages if avg > 85)
+    low_days = sum(1 for avg in recent_averages if avg < 40)
 
-                if avg < 40:
-                    low_days += 1
-                elif avg > 85:
-                    high_days += 1
-            except Exception as e:
-                print(f"⚠️ Error processing {check_day}: {e}")
-                continue
-        else:
-            print(f"❌ No data for {check_day}")
+    def update_remaining_routine(new_level):
+        existing_routine = player_data.get("routine", {})
+        new_full_routine = enrich_routine(generate_skill_based_routine_by_level(new_level))
+        updated_routine = {}
 
-    if low_days >= 3 and current_index > 0:
-        new_level = levels[current_index - 1]
-        raw_routine = generate_skill_based_routine_by_level(new_level)
-        new_routine = enrich_routine(raw_routine)
+        # Only keep drills that have already been submitted
+        submitted_days = set()
+        result_docs = db.collection("dailyResults").where("email", "==", email).stream()
+        for doc in result_docs:
+            day_key = doc.to_dict().get("day")
+            if day_key:
+                for key in existing_routine:
+                    if day_key in key:
+                        submitted_days.add(key)
+
+        for key in existing_routine:
+            if key in submitted_days:
+                updated_routine[key] = existing_routine[key]
+            else:
+                updated_routine[key] = new_full_routine.get(key, existing_routine.get(key))
 
         player_ref.update({
             "skill_level": new_level,
-            "routine": new_routine
+            "routine": updated_routine
         })
-        print(f"⏬ Regressed to {new_level}")
-        return f"⏬ Regressed to {new_level} after 3 poor days."
 
-    if high_days >= 3 and current_index < len(levels) - 1:
+    if high_days == 3 and current_index < len(levels) - 1:
         new_level = levels[current_index + 1]
-        raw_routine = generate_skill_based_routine_by_level(new_level)
-        new_routine = enrich_routine(raw_routine)
-        player_ref.update({
-            "skill_level": new_level,
-            "routine": new_routine
-        })
-        print(f"⬆️ Promoted to {new_level}")
-        return f"⬆️ Promoted to {new_level} after 3 great days!"
+        update_remaining_routine(new_level)
+        return f"⬆️ Promoted to {new_level} after 3 great training days!"
 
-    print("📊 No change in skill level")
+    if low_days == 3 and current_index > 0:
+        new_level = levels[current_index - 1]
+        update_remaining_routine(new_level)
+        return f"⏬ Regressed to {new_level} after 3 poor training days."
+
     return "✅ No skill level change needed."
+
+
+
 
 
 def enrich_routine(routine):
@@ -790,6 +798,8 @@ def enrich_routine(routine):
 @app.route("/get_routine", methods=["GET"])
 def get_routine():
     email = request.args.get("email")
+    mock_day = request.args.get("mock_day")  # Optional for testing
+
     if not email:
         return jsonify({"error": "Missing email"}), 400
 
@@ -799,21 +809,37 @@ def get_routine():
 
     player = player_doc.to_dict()
     routine = player.get("routine", {})
+    progress = int(player.get("routine_progress", 1))
 
+    # Check if they already submitted today
+    today_str = mock_day if mock_day else date.today().isoformat()
+    if player.get("last_submission_date") == today_str:
+        # Block access to the next day
+        progress -= 1
 
-    enriched_routine = {}
-    for day, drills in routine.items():
-        enriched_routine[day] = [
-            {
+    full_key = f"Day {progress}"
+    drills = routine.get(full_key)
+
+    if not drills:
+        return jsonify({
+            "routine": {},
+            "message": "🎉 You’ve completed your full routine!"
+        })
+
+    enriched_drills = []
+    for drill in drills:
+        if isinstance(drill, dict):
+            enriched_drills.append(drill)
+        else:
+            enriched_drills.append({
                 "name": drill,
                 "reps": drill_details.get(drill, {}).get("reps", "N/A"),
-                "description": drill_details.get(drill, {}).get("description", "No description")
-            }
-            for drill in drills
-        ]
+                "description": drill_details.get(drill, {}).get("description", "No description available.")
+            })
 
     return jsonify({
-        "routine": enriched_routine
+        "day": full_key,
+        "drills": enriched_drills
     })
 
 @app.route("/submit_test_results", methods=["POST"])
@@ -849,7 +875,9 @@ def submit_test_results():
     else:
         skill_level = "Beginner"
 
-    raw_routine = generate_skill_based_routine_by_level(skill_level, days=14)
+    total_days = days_per_week * 2  # e.g. 3 days/week → 6 training days
+    raw_routine = generate_skill_based_routine_by_level(skill_level, days=total_days)
+
     full_routine = enrich_routine(raw_routine)
 
 
@@ -868,7 +896,9 @@ def submit_test_results():
     "show_on_leaderboard": show_on_leaderboard,
     "wants_email_reminders": wants_email_reminders,
     "badges": badges,  
-    "days_per_week": days_per_week
+    "days_per_week": days_per_week,
+    "routine_progress": 1,
+
 })
 
     print("Raw submitted results:", results)
@@ -945,87 +975,84 @@ def submit_daily_results():
     name = data.get("name")
     email = data.get("email")
     results = data.get("results")  
-    mock_day = data.get("mock_day")
+    mock_day = data.get("mock_day")  # Optional for testing
 
     if not all([name, email, results]):
         return jsonify({"error": "Missing fields"}), 400
 
-    today = mock_day if mock_day else datetime.today().strftime("%A")
-    doc_id = f"{email}_{today}"
+    # Use current date or mock date
+    today_str = mock_day if mock_day else date.today().isoformat()
+
+    # Get player document
+    player_ref = db.collection("players").document(email)
+    player_doc = player_ref.get()
+    if not player_doc.exists:
+        return jsonify({"error": "Player not found"}), 404
+
+    player_data = player_doc.to_dict()
+    routine = player_data.get("routine", {})
+    routine_progress = int(player_data.get("routine_progress", 1))
+
+    # ❌ Already submitted today
+    if player_data.get("last_submission_date") == today_str:
+        return jsonify({
+            "error": "🚫 You’ve already submitted drills for today. Come back tomorrow!"
+        }), 403
+
+    today_key = next((k for k in routine if k.startswith(f"Day {routine_progress}")), None)
+    if not today_key:
+        return jsonify({"error": "Routine day not found."}), 404
+
+    doc_id = f"{email}_{today_key.replace(' ', '_')}"
     result_ref = db.collection("dailyResults").document(doc_id)
 
-
-    if result_ref.get().exists:
-        return jsonify({
-            "error": f"🚫 You've already submitted results for {today}."
-        }), 409  # 409 Conflict
-
+    # XP and Badge Calculation
     weighted_score = calculate_weighted_score(results)
     xp_gained = int(weighted_score * 5)
 
+    existing_results = player_data.get("results", [])
+    if isinstance(existing_results, dict):
+        existing_results = list(existing_results.values())
 
-    # Update player profile
-    player_ref = db.collection("players").document(email)
-    player_doc = player_ref.get()
+    new_results = existing_results + [str(score) for score in results.values()]
+    current_xp = int(player_data.get("xp", 0))
 
-    # Default response
-    skill_msg = "✅ No skill level check (new player)."
-    updated_badge_list = []
-    
-    if player_doc.exists:
-        player_data = player_doc.to_dict()
-        existing_results = player_data.get("results", [])
+    temp_player_data = {**player_data, "results": new_results}
+    updated_badge_list = determine_badges(temp_player_data, current_xp + xp_gained, streak_count=1)
 
-        if isinstance(existing_results, dict):
-            existing_results = list(existing_results.values())
-
-        new_results = existing_results + [str(score) for score in results.values()]
-        current_xp = int(player_data.get("xp", 0))
-        
-        skill_level = player_data.get("skill_level", "Beginner")
-
-        temp_player_data = {**player_data, "results": new_results}
-        updated_badge_list = determine_badges(temp_player_data, current_xp + xp_gained, streak_count=1)
-
-      
-        raw_routine = generate_skill_based_routine_by_level(skill_level, days=14)
-        routine = enrich_routine(raw_routine)
-
-        player_ref.update({
-            "xp": current_xp + xp_gained,
-            "results": new_results,
-            "routine": routine,
-            "badges": updated_badge_list
-        })
-
-    else:
-      
-        player_ref.set({
-            "name": name,
-            "email": email,
-            "results": [str(score) for score in results.values()],
-            "xp": xp_gained,
-            "badges": [],
-        })
-
+    # Save result
     result_ref.set({
         "name": name,
         "email": email,
-        "day": today,
+        "day": today_key,
         "results": results,
         "xp_gained": xp_gained,
         "timestamp": datetime.now(UTC).isoformat(),
         "badges": updated_badge_list
     })
-    
-    skill_msg = check_skill_change(email, today)
+
+    # Only move to next day if one exists
+    next_progress = routine_progress + 1 if any(k.startswith(f"Day {routine_progress + 1}") for k in routine) else routine_progress
+
+    # Update player
+    player_ref.update({
+        "xp": current_xp + xp_gained,
+        "results": new_results,
+        "badges": updated_badge_list,
+        "routine_progress": next_progress,
+        "last_submission_date": today_str
+    })
+
+    # Skill check
+    skill_msg = check_skill_change_recent_submissions(email)
 
     return jsonify({
-        "message": f"✅ Results submitted successfully. You earned {xp_gained} XP!",
+        "message": f"✅ Results submitted successfully for {today_key}. You earned {xp_gained} XP!",
         "xp_gained": xp_gained,
         "weighted_score": weighted_score,
         "skill_update": skill_msg
-}), 200
+    }), 200
+
 
 
 @app.route("/chatbot_category", methods=["POST"])
@@ -1090,9 +1117,13 @@ def chatbot_query():
 
         if normalized_sub in ["todaysdrills"]:
             routine = player.get("routine", {})
-            matching_day = next((k for k in routine if today in k), None)
-            drills = routine.get(matching_day, [])
-            return jsonify({"response": f"📋 Your drills for today ({today}) are: {', '.join(drills) if drills else 'No drills found.'}"})
+            progress = player.get("routine_progress", 1)
+            drills = routine.get(f"Day {progress}", [])
+            drill_names = [d["name"] if isinstance(d, dict) else str(d) for d in drills]
+
+            return jsonify({
+                "response": f"📋 Your drills for today (Day {progress}) are: {', '.join(drill_names) if drill_names else 'No drills found.'}"
+})
 
     
     category_map = chatbot_knowledge_base.get(category)
@@ -1336,7 +1367,9 @@ def player_question():
 
     if "drill" in question and "today" in question:
         routine_dict = player.get("routine", {})
-        matching_day = next((key for key in routine_dict if today in key), None)
+        progress = player.get("routine_progress", 1)
+        matching_day = f"Day {progress}"
+
         if matching_day:
             drills = routine_dict[matching_day]
             return jsonify({"response": f"📋 Your drills for today ({today}) are: {', '.join(drills)}"})
@@ -1387,6 +1420,6 @@ def run_scheduler():
 threading.Thread(target=run_scheduler, daemon=True).start()
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5050)
 
 

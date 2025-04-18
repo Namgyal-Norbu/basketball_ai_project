@@ -14,7 +14,7 @@ function Home() {
 
   const handleDownloadData = async () => {
     try {
-      const res = await fetch(`http://127.0.0.1:5000/export_profile?email=${user.email}`);
+      const res = await fetch(`http://127.0.0.1:5050/export_profile?email=${user.email}`);
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -31,7 +31,7 @@ function Home() {
     if (!confirmed) return;
 
     try {
-      const res = await fetch("http://127.0.0.1:5000/delete_profile", {
+      const res = await fetch("http://127.0.0.1:5050/delete_profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: user.displayName, email: user.email }),

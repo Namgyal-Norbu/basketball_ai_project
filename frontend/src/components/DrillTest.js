@@ -17,7 +17,7 @@ function SubmitDrill() {
     if (!user) return;
     const checkTestStatus = async () => {
       try {
-        const res = await fetch(`http://127.0.0.1:5000/player_status?email=${user.email}`);
+        const res = await fetch(`http://127.0.0.1:5050/player_status?email=${user.email}`);
         const data = await res.json();
         if (data.test_completed) {
           setHasCompletedTest(true);
@@ -32,7 +32,7 @@ function SubmitDrill() {
 
   const fetchTestDrills = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:5000/generate_drill_test", {
+      const res = await fetch("http://127.0.0.1:5050/generate_drill_test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email: user.email }),
@@ -75,7 +75,7 @@ function SubmitDrill() {
     }
 
     try {
-      const res = await fetch("http://127.0.0.1:5000/submit_test_results", {
+      const res = await fetch("http://127.0.0.1:5050/submit_test_results", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
