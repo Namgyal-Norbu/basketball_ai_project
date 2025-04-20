@@ -7,31 +7,46 @@ function DrillTest({ user }) {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [routineDayLabel, setRoutineDayLabel] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [xpGained, setXpGained] = useState(0);
+  const [mockDay, setMockDay] = useState("");
 
   const email = user?.email;
 
+  const checkSubmissionStatus = async () => {
+    if (!email) return;
+    try {
+      const res = await fetch(`http://localhost:5050/check_today_submission?email=${email}`);
+      const data = await res.json();
+      setSubmitted(data.submitted);
+      setXpGained(data.xp_gained || 0);
+    } catch (err) {
+      console.error("Failed to check submission:", err);
+    }
+  };
+
   const loadTodayDrills = async () => {
     if (!email) return;
-
+  
     try {
       setLoading(true);
       setMessage("");
-
-      const res = await fetch(`http://localhost:5050/get_routine?email=${email}`);
+  
+      const res = await fetch(`http://localhost:5050/get_routine?email=${email}&mock_day=${mockDay}`);
       const data = await res.json();
-
-      // ✅ Handle error or message returned from the backend
+  
       if (data.error || data.message) {
         setMessage(data.error || data.message);
         setTodayDrills([]);
         setRoutineDayLabel("");
         return;
       }
-
+  
       const todayRoutine = data.drills || [];
       setTodayDrills(todayRoutine);
-      setRoutineDayLabel(data.day || "");
+      setRoutineDayLabel(`Day ${data.day.split(" ")[1]} (from ${mockDay})`);
 
+  
       const initialResults = {};
       todayRoutine.forEach((drill) => {
         initialResults[drill.name] = "";
@@ -44,10 +59,14 @@ function DrillTest({ user }) {
       setLoading(false);
     }
   };
+  
 
   useEffect(() => {
-    loadTodayDrills();
-  }, [email]);
+    if (email) {
+      loadTodayDrills();
+      checkSubmissionStatus();
+    }
+  }, [email, mockDay]); // re-fetch when mockDay changes
 
   const handleResultSubmit = async () => {
     const allFilled = Object.values(results).every(val => val !== "" && !isNaN(val));
@@ -69,13 +88,15 @@ function DrillTest({ user }) {
           name: user.displayName,
           email: user.email,
           results: formattedResults,
+          mock_day: mockDay || undefined
         }),
       });
 
       const data = await res.json();
       if (res.status === 200) {
         setMessage(data.message || "✅ Drill results submitted!");
-        loadTodayDrills(); // Refresh drills in case it completes a day
+        setSubmitted(true);
+        setXpGained(data.xp_gained || 0);
       } else {
         setMessage(data.error || "⚠️ Failed to submit results.");
       }
@@ -92,6 +113,13 @@ function DrillTest({ user }) {
       {user ? (
         <>
           <p><strong>Welcome,</strong> {user.displayName}</p>
+          <input
+            type="text"
+            placeholder="🛠 Enter mock day (e.g. 2025-04-14)"
+            value={mockDay}
+            onChange={(e) => setMockDay(e.target.value)}
+            style={{ marginBottom: "12px", padding: "8px", width: "100%", maxWidth: "400px" }}
+          />
 
           {loading ? (
             <p>⏳ Loading drills...</p>
@@ -103,24 +131,43 @@ function DrillTest({ user }) {
                     <h3 className="drill-title">{drill.name}</h3>
                     <p className="drill-reps"><em>📌 {drill.reps}</em></p>
                     <p className="drill-description">{drill.description}</p>
-                    <input
-                      type="number"
-                      className="drill-input"
-                      min="0"
-                      max="100"
-                      placeholder="🏀 Enter score (0–100)"
-                      value={results[drill.name] || ""}
-                      onChange={(e) =>
-                        setResults({ ...results, [drill.name]: e.target.value })
-                      }
-                    />
+                    {submitted ? (
+                      <p className="submitted-text">✅ Already submitted</p>
+                    ) : (
+                      <select
+                  className="drill-input"
+                  value={results[drill.name] || ""}
+                  onChange={(e) =>
+                    setResults({ ...results, [drill.name]: e.target.value })
+                  }
+                >
+                  <option value="">🏀 Select Score</option>
+                  {[...Array(11)].map((_, i) => {
+                    const score = i * 10;
+                    return (
+                      <option key={score} value={score}>
+                        {score}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                    )}
                   </div>
                 ))}
               </div>
 
-              <button onClick={handleResultSubmit}>
-                ✅ Submit Results
+              <button
+                onClick={handleResultSubmit}
+                disabled={submitted}
+                className={submitted ? "disabled" : ""}
+              >
+                {submitted ? "✅ Already Submitted" : "✅ Submit Results"}
               </button>
+
+              {submitted && xpGained > 0 && (
+                <p className="xp-gained-text">🌟 You gained {xpGained} XP today!</p>
+              )}
             </>
           ) : (
             <p>📭 No drills assigned for today.</p>

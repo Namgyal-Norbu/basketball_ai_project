@@ -93,7 +93,8 @@ function Home() {
     <div className="container">
       <h2>🏀 Welcome Back, {user.displayName}!</h2>
 
-      <div className="card xp-container">
+      <div className="dashboard-card">
+
         <h3>🎯 Level {level}</h3>
         <div className="xp-bar">
           <div className="xp-fill" style={{ width: `${progressPercent}%` }}></div>
@@ -101,12 +102,14 @@ function Home() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="dashboard-card">
+
         <h3>🔥 Daily Streak</h3>
         <p>{streak} days in a row</p>
       </div>
 
-      <div className="card">
+      <div className="dashboard-card">
+
         <h3>🏆 Badges Earned</h3>
         {badges.length > 0 ? (
           <ul style={{ listStyleType: "none", paddingLeft: 0 }}>
@@ -119,7 +122,8 @@ function Home() {
         )}
       </div>
 
-      <div className="card">
+      <div className="dashboard-card">
+
         <h3>🔐 Privacy Controls</h3>
         <button
           className="danger-button"

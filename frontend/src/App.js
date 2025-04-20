@@ -10,6 +10,7 @@ import Leaderboard from "./components/Leaderboard";
 import ProgressChart from "./components/ProgressChart";
 import HowToUse from "./components/HowToUse";
 import ChatBotWidget from "./components/ChatBotWidget";
+import backgroundImage from './components/Photos/Background.jpg';
 
 import "./components/styles.css";
 
@@ -17,19 +18,29 @@ function App() {
   const user = useUser(); 
 
   return (
-    <Router>
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/drill-test" element={<DrillTest user={user} />} />
-        <Route path="/submit-drills" element={<SubmitDrill user={user} />} /> 
-        <Route path="/routine" element={<DailyRoutine user={user} />} />     
-        <Route path="/leaderboard" element={<Leaderboard />} />
-        <Route path="/progress" element={<ProgressChart />} /> 
-        <Route path="/how-to-use" element={<HowToUse />} />
-      </Routes>
-      <ChatBotWidget />
-    </Router>
+    <div
+      style={{
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed",
+        minHeight: "100vh",
+      }}
+    >
+      <Router>
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/drill-test" element={<DrillTest user={user} />} />
+          <Route path="/submit-drills" element={<SubmitDrill user={user} />} /> 
+          <Route path="/routine" element={<DailyRoutine user={user} />} />     
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/progress" element={<ProgressChart />} /> 
+          <Route path="/how-to-use" element={<HowToUse />} />
+        </Routes>
+        <ChatBotWidget />
+      </Router>
+    </div>
   );
 }
 

@@ -137,14 +137,22 @@ function SubmitDrill() {
                         <h4>{drill.name}</h4>
                         <p><em>{drill.reps}</em></p>
                         <p>{drill.description}</p>
-                        <input
-                          type="number"
-                          value={results[drill.name] || ""}
-                          onChange={(e) => handleChange(drill.name, e.target.value)}
-                          min="0"
-                          max="100"
-                          placeholder="Enter score (0–100)"
-                        />
+                        <select
+                className="drill-input"
+                value={results[drill.name] || ""}
+                onChange={(e) => handleChange(drill.name, e.target.value)}
+              >
+                <option value="">🏀 Select Score</option>
+                {[...Array(11)].map((_, i) => {
+                  const score = i * 10;
+                  return (
+                    <option key={score} value={score}>
+                      {score}
+                    </option>
+                  );
+                })}
+              </select>
+
                       </div>
                     ))}
 

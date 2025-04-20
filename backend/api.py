@@ -19,6 +19,9 @@ from io import BytesIO
 from flask import send_file
 from flask_cors import cross_origin
 import random
+import json
+from flask import Response
+
 
 
 load_dotenv()
@@ -99,6 +102,12 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
+def match_day_key_from_label(routine, submitted_day):
+    for key in routine.keys():
+        if submitted_day.lower() in key.lower():
+            return key
+    return None
+
 def build_drill_to_skill_map():
     mapping = {}
     for skill, levels in skill_drill_bank.items():
@@ -138,8 +147,9 @@ def send_email_reminder(to_email, subject, player_name):
         return False
 
     routine = player_doc.to_dict().get("routine", {})
-    progress = player_doc.to_dict().get("routine_progress", 1)
-    matching_day_key = f"Day {progress}"
+    start_date = player_doc.to_dict().get("routine_start_date")
+    matching_day_key = get_day_key(start_date)
+
 
     drills_today = routine.get(matching_day_key, ["No drills assigned."])   
 
@@ -224,9 +234,13 @@ def send_reminder():
         return jsonify({"error": "Missing email"}), 400
 
     subject = "⏰ Time for your daily basketball drills!"
-    body = "Don't forget to log into Basketball AI and complete today's drills. 💪🏀"
+    
+    player_doc = db.collection("players").document(email).get()
+    if not player_doc.exists:
+        return jsonify({"error": "Player not found"}), 404
+    name = player_doc.to_dict().get("name", "Player")
+    success = send_email_reminder(email, subject, name)
 
-    success = send_email_reminder(email, subject, body)
 
     if success:
         return jsonify({"message": "Reminder email sent."}), 200
@@ -234,10 +248,7 @@ def send_reminder():
         return jsonify({"error": "Failed to send reminder"}), 500
 
 drill_details = {
-    "Free Throws": {
-        "reps": "10 shots",
-        "description": "Score 10 point for each made free throw."
-    },
+    
     "Cross Over Dribble and Finish": {
         "reps": "10 reps",
         "description": "Score 10 point per successful dribble + finish without losing control."
@@ -446,7 +457,7 @@ drill_details = {
     },
 
     "Mikan Drill": {
-        "reps": "20 alternating finishes",
+        "reps": "10 alternating finishes",
         "description": (
             "10 point per successful make:\n"
             "- Quick footwork around rim\n"
@@ -745,15 +756,15 @@ def check_skill_change_recent_submissions(email):
         new_full_routine = enrich_routine(generate_skill_based_routine_by_level(new_level))
         updated_routine = {}
 
-        # Only keep drills that have already been submitted
         submitted_days = set()
         result_docs = db.collection("dailyResults").where("email", "==", email).stream()
         for doc in result_docs:
-            day_key = doc.to_dict().get("day")
-            if day_key:
-                for key in existing_routine:
-                    if day_key in key:
-                        submitted_days.add(key)
+            raw_day_label = doc.to_dict().get("day")
+            if raw_day_label:
+                matched_key = match_day_key_from_label(existing_routine, raw_day_label)
+                if matched_key:
+                    submitted_days.add(matched_key)
+
 
         for key in existing_routine:
             if key in submitted_days:
@@ -778,10 +789,6 @@ def check_skill_change_recent_submissions(email):
 
     return "✅ No skill level change needed."
 
-
-
-
-
 def enrich_routine(routine):
     enriched = {}
     for day, drills in routine.items():
@@ -794,11 +801,23 @@ def enrich_routine(routine):
             for drill in drills
         ]
     return enriched
+def get_day_key(routine_start_date_str, mock_day_str=None):
+    start_date = datetime.strptime(routine_start_date_str, "%Y-%m-%d").date()
+    
+    if not mock_day_str:
+        today = date.today()
+    else:
+        today = datetime.strptime(mock_day_str, "%Y-%m-%d").date()
+    
+    delta_days = (today - start_date).days
+    day_index = (delta_days % 14) + 1
+    return f"Day {day_index}"
+
 
 @app.route("/get_routine", methods=["GET"])
 def get_routine():
     email = request.args.get("email")
-    mock_day = request.args.get("mock_day")  # Optional for testing
+    mock_day = request.args.get("mock_day")
 
     if not email:
         return jsonify({"error": "Missing email"}), 400
@@ -809,17 +828,15 @@ def get_routine():
 
     player = player_doc.to_dict()
     routine = player.get("routine", {})
-    progress = int(player.get("routine_progress", 1))
+    start_date = player.get("routine_start_date")
 
-    # Check if they already submitted today
-    today_str = mock_day if mock_day else date.today().isoformat()
-    if player.get("last_submission_date") == today_str:
-        # Block access to the next day
-        progress -= 1
+    if not start_date:
+        return jsonify({"error": "No start date found. Re-take the assessment."}), 400
 
-    full_key = f"Day {progress}"
-    drills = routine.get(full_key)
+    day_key = get_day_key(start_date, mock_day)
 
+
+    drills = routine.get(day_key)
     if not drills:
         return jsonify({
             "routine": {},
@@ -838,7 +855,7 @@ def get_routine():
             })
 
     return jsonify({
-        "day": full_key,
+        "day": day_key,
         "drills": enriched_drills
     })
 
@@ -875,9 +892,7 @@ def submit_test_results():
     else:
         skill_level = "Beginner"
 
-    total_days = days_per_week * 2  # e.g. 3 days/week → 6 training days
-    raw_routine = generate_skill_based_routine_by_level(skill_level, days=total_days)
-
+    raw_routine = generate_skill_based_routine_by_level(skill_level, days=14)
     full_routine = enrich_routine(raw_routine)
 
 
@@ -897,7 +912,7 @@ def submit_test_results():
     "wants_email_reminders": wants_email_reminders,
     "badges": badges,  
     "days_per_week": days_per_week,
-    "routine_progress": 1,
+    "routine_start_date": datetime.utcnow().strftime("%Y-%m-%d"),
 
 })
 
@@ -957,8 +972,6 @@ def calculate_weighted_score(results):
                 skill_scores[skill].append(round(float(score)))
             except:
                 continue
-
-
     weighted_score = 0
     for skill, scores in skill_scores.items():
             print(f"{skill}: {scores}")
@@ -968,92 +981,96 @@ def calculate_weighted_score(results):
 
     return round(weighted_score, 2)
 
-
 @app.route("/submit_daily_results", methods=["POST"])
 def submit_daily_results():
     data = request.json
     name = data.get("name")
     email = data.get("email")
     results = data.get("results")  
-    mock_day = data.get("mock_day")  # Optional for testing
+    mock_day = data.get("mock_day") 
+
+    today = mock_day if mock_day else date.today().isoformat()  
 
     if not all([name, email, results]):
         return jsonify({"error": "Missing fields"}), 400
 
-    # Use current date or mock date
-    today_str = mock_day if mock_day else date.today().isoformat()
-
-    # Get player document
-    player_ref = db.collection("players").document(email)
-    player_doc = player_ref.get()
-    if not player_doc.exists:
-        return jsonify({"error": "Player not found"}), 404
-
-    player_data = player_doc.to_dict()
-    routine = player_data.get("routine", {})
-    routine_progress = int(player_data.get("routine_progress", 1))
-
-    # ❌ Already submitted today
-    if player_data.get("last_submission_date") == today_str:
-        return jsonify({
-            "error": "🚫 You’ve already submitted drills for today. Come back tomorrow!"
-        }), 403
-
-    today_key = next((k for k in routine if k.startswith(f"Day {routine_progress}")), None)
-    if not today_key:
-        return jsonify({"error": "Routine day not found."}), 404
-
-    doc_id = f"{email}_{today_key.replace(' ', '_')}"
+    today = mock_day if mock_day else date.today().isoformat()
+    doc_id = f"{email}_{today}"
     result_ref = db.collection("dailyResults").document(doc_id)
 
-    # XP and Badge Calculation
+    if result_ref.get().exists:
+        return jsonify({
+            "error": f"🚫 You've already submitted results for {today}."
+        }), 409  
+
     weighted_score = calculate_weighted_score(results)
     xp_gained = int(weighted_score * 5)
 
-    existing_results = player_data.get("results", [])
-    if isinstance(existing_results, dict):
-        existing_results = list(existing_results.values())
+    # Update player profile
+    player_ref = db.collection("players").document(email)
+    player_doc = player_ref.get()
 
-    new_results = existing_results + [str(score) for score in results.values()]
-    current_xp = int(player_data.get("xp", 0))
+    # Default response
+    skill_msg = "✅ No skill level check (new player)."
+    updated_badge_list = []
+    
+    if player_doc.exists:
+        player_data = player_doc.to_dict()
+        existing_results = player_data.get("results", [])
 
-    temp_player_data = {**player_data, "results": new_results}
-    updated_badge_list = determine_badges(temp_player_data, current_xp + xp_gained, streak_count=1)
+        if isinstance(existing_results, dict):
+            existing_results = list(existing_results.values())
 
-    # Save result
+        new_results = existing_results + [str(score) for score in results.values()]
+        current_xp = int(player_data.get("xp", 0))
+        
+        skill_level = player_data.get("skill_level", "Beginner")
+
+        temp_player_data = {**player_data, "results": new_results}
+        updated_badge_list = determine_badges(temp_player_data, current_xp + xp_gained, streak_count=1)
+
+      
+        raw_routine = generate_skill_based_routine_by_level(skill_level, days=14)
+        routine = enrich_routine(raw_routine)
+
+        player_ref.update({
+            "xp": current_xp + xp_gained,
+            "results": new_results,
+            "routine": routine,
+            "badges": updated_badge_list,
+            "last_submission_date": today,
+
+        })
+
+    else:
+      
+        player_ref.set({
+            "name": name,
+            "email": email,
+            "results": [str(score) for score in results.values()],
+            "xp": xp_gained,
+            "badges": [],
+        })
+
     result_ref.set({
         "name": name,
         "email": email,
-        "day": today_key,
+        "day": today,
         "results": results,
         "xp_gained": xp_gained,
         "timestamp": datetime.now(UTC).isoformat(),
         "badges": updated_badge_list
     })
-
-    # Only move to next day if one exists
-    next_progress = routine_progress + 1 if any(k.startswith(f"Day {routine_progress + 1}") for k in routine) else routine_progress
-
-    # Update player
-    player_ref.update({
-        "xp": current_xp + xp_gained,
-        "results": new_results,
-        "badges": updated_badge_list,
-        "routine_progress": next_progress,
-        "last_submission_date": today_str
-    })
-
-    # Skill check
+    
     skill_msg = check_skill_change_recent_submissions(email)
 
+
     return jsonify({
-        "message": f"✅ Results submitted successfully for {today_key}. You earned {xp_gained} XP!",
+        "message": f"✅ Results submitted successfully. You earned {xp_gained} XP!",
         "xp_gained": xp_gained,
         "weighted_score": weighted_score,
         "skill_update": skill_msg
-    }), 200
-
-
+}), 200
 
 @app.route("/chatbot_category", methods=["POST"])
 def chatbot_category():
@@ -1080,8 +1097,7 @@ def chatbot_category():
     elif category == "🛠️ Account & Settings":
         return jsonify({"response": "You can export or delete your profile in the settings section."})
     else:
-        return jsonify({"response": "🤔 I'm not sure how to help with that category."})
-    
+        return jsonify({"response": "🤔 I'm not sure how to help with that category."}) 
 
 @app.route("/chatbot_query", methods=["POST"])
 def chatbot_query():
@@ -1089,12 +1105,10 @@ def chatbot_query():
     category = data.get("category")
     subcategory = data.get("subcategory")
     email = data.get("email", None)
-
     normalized_sub = (
-    "".join(c for c in subcategory.lower() if c.isalnum()) if subcategory else ""
-)
+        "".join(c for c in subcategory.lower() if c.isalnum()) if subcategory else ""
+    )
 
-    
     if email:
         player_ref = db.collection("players").document(email)
         doc = player_ref.get()
@@ -1102,8 +1116,7 @@ def chatbot_query():
             return jsonify({"response": "❌ Player not found."}), 404
 
         player = doc.to_dict()
-        today = datetime.utcnow().strftime("%A")
-
+        today_iso = date.today().isoformat()
 
         if normalized_sub in ["xp"]:
             return jsonify({"response": f"💪 You currently have {player.get('xp', 0)} XP."})
@@ -1116,16 +1129,24 @@ def chatbot_query():
             return jsonify({"response": f"🏅 You’ve earned: {', '.join(badges) if badges else 'no badges yet.'}"})
 
         if normalized_sub in ["todaysdrills"]:
+            # Don't show drills if already submitted today
+            if player.get("last_submission_date") == today_iso:
+                return jsonify({
+                    "response": "✅ You've already completed today's drills. Come back tomorrow for more!"
+                })
+
             routine = player.get("routine", {})
-            progress = player.get("routine_progress", 1)
-            drills = routine.get(f"Day {progress}", [])
+            start_date = player.get("routine_start_date")
+            day_key = get_day_key(start_date)
+            drills = routine.get(day_key, [])
+
             drill_names = [d["name"] if isinstance(d, dict) else str(d) for d in drills]
 
             return jsonify({
-                "response": f"📋 Your drills for today (Day {progress}) are: {', '.join(drill_names) if drill_names else 'No drills found.'}"
-})
+                "response": f"📋 Your drills for today ({day_key}) are: {', '.join(drill_names) if drill_names else 'No drills found.'}"
+            })
 
-    
+    # Fallback to static responses if no personalized query matched
     category_map = chatbot_knowledge_base.get(category)
     if not category_map:
         return jsonify({"response": "❌ Unknown category."}), 404
@@ -1136,18 +1157,45 @@ def chatbot_query():
 
     return jsonify({"response": response})
 
+@app.route("/check_today_submission")
+def check_today_submission():
+    email = request.args.get("email")
+    mock_day = request.args.get("mock_day")  # Optional for testing
+
+    if not email:
+        return jsonify({"error": "Missing email"}), 400
+
+    player_ref = db.collection("players").document(email)
+    player_doc = player_ref.get()
+    if not player_doc.exists:
+        return jsonify({"submitted": False})
+
+    player = player_doc.to_dict()
+    today_str = mock_day if mock_day else date.today().isoformat()
+
+    if player.get("last_submission_date") == today_str:
+        start_date = player.get("routine_start_date")
+        day_key = get_day_key(start_date)
+        doc_id = f"{email}_{day_key.replace(' ', '_')}"
+        result_doc = db.collection("dailyResults").document(doc_id).get()
+        if result_doc.exists:
+            return jsonify({
+                "submitted": True,
+                "day": day_key,
+                "xp_gained": result_doc.to_dict().get("xp_gained", 0)
+            })
+
+    return jsonify({"submitted": False})
+
 @app.route("/leaderboard", methods=["GET"])
 def leaderboard():
     players_ref = db.collection("players")
     results_ref = db.collection("dailyResults")
-
     players = []
     today = date.today()
     week_start = today - timedelta(days=today.weekday())  
-
     top_today = None
     top_today_xp = 0
-
     top_week = None
     top_week_score = 0
 
@@ -1161,7 +1209,6 @@ def leaderboard():
         level = (xp // 500) + 1
         raw_results = data.get("results", [])
 
-       
         numeric_results = []
         for x in raw_results:
             try:
@@ -1171,7 +1218,6 @@ def leaderboard():
 
         average_score = sum(numeric_results) / len(numeric_results) if numeric_results else 0
 
-       
         day_query = results_ref.where("email", "==", data.get("email"))
         day_docs = day_query.stream()
         day_set = set()
@@ -1224,7 +1270,6 @@ def leaderboard():
         "top_performer_week": top_week
     })
 
-
 @app.route("/delete_profile", methods=["POST"])
 def delete_profile():
     data = request.json
@@ -1263,8 +1308,6 @@ def export_profile():
         profile = doc.to_dict()
         results = db.collection("dailyResults").where("email", "==", email).stream()
         result_data = [doc.to_dict() for doc in results]
-
-        # Create a PDF in memory
         buffer = BytesIO()
         c = canvas.Canvas(buffer, pagesize=letter)
         c.setFont("Helvetica", 12)
@@ -1367,14 +1410,10 @@ def player_question():
 
     if "drill" in question and "today" in question:
         routine_dict = player.get("routine", {})
-        progress = player.get("routine_progress", 1)
-        matching_day = f"Day {progress}"
-
-        if matching_day:
-            drills = routine_dict[matching_day]
-            return jsonify({"response": f"📋 Your drills for today ({today}) are: {', '.join(drills)}"})
-        else:
-            return jsonify({"response": f"😕 No drills found for {today}."})
+        start_date = player.get("routine_start_date")
+        day_key = get_day_key(start_date)
+        drills = routine_dict.get(day_key, [])
+        return jsonify({"response": f"📋 Your drills for today ({day_key}) are: {', '.join(drills) if drills else 'No drills found.'}"})
 
     if "result" in question or "logged" in question:
         if result_doc.exists:

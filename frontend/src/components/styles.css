@@ -7,16 +7,38 @@
   --input-border: #ccc;
 }
 
-/* General Styling */
-body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  padding: 0;
-  background-color: #f4f4f4;
+h2{
+  color:white;
   text-align: center;
 }
 
-/* Navbar */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+
+.dashboard-card {
+  background-color: #fff;
+  border-left: 5px solid var(--primary-green); /* Slide-style green stripe */
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin-bottom: 25px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  text-align: center;
+}
+.dashboard-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
 .navbar {
   display: flex;
   align-items: center;
@@ -80,15 +102,17 @@ body {
   cursor: pointer;
 }
 
-/* Container */
-.container {
-  padding: 20px;
-  max-width: 600px;
-  margin: auto;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+html {
+  height: 100%;
 }
+
+
+.container {
+  padding: 40px 20px;
+  max-width: 650px;  
+  margin: 0 auto;
+}
+
 
 .logo {
   font-size: 20px;
@@ -180,12 +204,54 @@ button:hover {
   border-radius: 12px;
   box-shadow: 0 0 10px rgba(0,0,0,0.08);
   text-align: center;
+  color:black
 }
+
+.chart-wrapper {
+  background-color: rgba(255, 255, 255, 0.88);
+  padding: 30px 20px;
+  margin: 40px auto; /* ⬅️ This creates spacing above and below */
+  border-radius: 16px;
+  max-width: 900px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+.title{
+  color:black;
+}
+.test-form {
+  color: white;
+}
+
+.test-form .drill-card p,
+.test-form .enhanced-drill-card p {
+  color: black;
+  text-shadow: none;
+}
+
+/* Optional: keep summary messages in white */
+.test-form > p:not(.drill-card p):not(.enhanced-drill-card p) {
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+
+.container p {
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+
+p {
+  color: black;
+}
+
+
 
 .leaderboard-header {
   font-size: 28px;
   font-weight: bold;
   margin-bottom: 20px;
+  color:black;
 }
 
 .leaderboard-table {
@@ -216,7 +282,8 @@ button:hover {
   margin: 15px 0;
   gap: 10px;
   font-size: 14px;
-  color: #333;
+  color: white;
+
 }
 
 .checkbox-wrapper input[type="checkbox"] {
@@ -233,6 +300,7 @@ button:hover {
 /* Form Sections */
 .form-section {
   padding: 0 20px;
+  
 }
 
 .danger-button {
@@ -276,6 +344,10 @@ button:hover {
   box-shadow: 0 2px 6px rgba(0,0,0,0.06);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   text-align: left;
+  max-width: 600px;
+  margin: 0 auto 25px;
+  color:black
+
 }
 
 .drill-card:hover,
@@ -305,7 +377,7 @@ button:hover {
 
 .drill-description {
   font-size: 14px;
-  color: #555;
+  color: black;
   line-height: 1.5;
   margin-bottom: 12px;
 }
@@ -347,4 +419,131 @@ button:hover {
 
 .submit-btn:hover {
   background: var(--green-gradient-hover);
+}
+
+.container .submitted-text {
+  color: black;
+  text-shadow: none !important;
+}
+
+
+.drill-card .drill-reps,
+.drill-card .drill-description,
+.enhanced-drill-card .drill-reps,
+.enhanced-drill-card .drill-description {
+  color: black;
+  text-shadow: none 
+}
+
+/* Ensure all text in dashboard cards is black */
+.dashboard-card p {
+  color: black;
+  text-shadow: none
+}
+
+.how-to-use-page .card,
+.how-to-use-page .card h3,
+.how-to-use-page .card p {
+  color: black !important;
+  text-shadow: none !important;
+}
+
+@media (max-width: 480px) {
+  .navbar {
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  .nav-links {
+    flex-direction: column;
+    gap: 12px;
+    padding: 10px 0;
+  }
+
+  .dashboard-card,
+  .drill-card,
+  .enhanced-drill-card,
+  .card,
+  .container,
+  .leaderboard-container {
+    max-width: 95%;
+    padding: 16px;
+  }
+
+  .drill-title {
+    font-size: 16px;
+  }
+
+  .drill-description,
+  .drill-reps {
+    font-size: 13px;
+  }
+
+  .submit-btn {
+    font-size: 16px;
+    padding: 10px 14px;
+  }
+
+  .profile-pic {
+    width: 32px;
+    height: 32px;
+  }
+
+  .login-btn {
+    font-size: 14px;
+    padding: 6px 10px;
+  }
+
+  .checkbox-wrapper {
+    font-size: 13px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .leaderboard-header {
+    font-size: 22px;
+  }
+
+  .leaderboard-table th,
+  .leaderboard-table td {
+    font-size: 14px;
+    padding: 8px;
+  }
+  .profile-pic {
+    margin: 10px auto 0;
+    display: block;
+  }
+  
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .nav-links {
+    gap: 18px;
+  }
+
+  .container {
+    padding: 30px 15px;
+  }
+
+  .chart-wrapper {
+    padding: 20px;
+  }
+
+  .drill-title {
+    font-size: 17px;
+  }
+
+  .drill-description {
+    font-size: 14px;
+  }
+
+  .submit-btn {
+    font-size: 17px;
+    padding: 10px 16px;
+  }
 }

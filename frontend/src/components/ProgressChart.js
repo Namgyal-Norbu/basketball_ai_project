@@ -147,8 +147,8 @@ function ProgressChart() {
   const skillOptions = Object.keys(charts);
 
   return (
-    <div className="container">
-      <h2>📊 Your Progress</h2>
+    <div className="chart-wrapper">
+      <h2 className = "title">📊 Your Progress</h2>
 
       {skillOptions.length > 0 ? (
         <>

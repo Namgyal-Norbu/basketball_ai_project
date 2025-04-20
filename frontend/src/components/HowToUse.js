@@ -3,7 +3,7 @@ import "./styles.css";
 
 function HowToUse() {
   return (
-    <div className="container">
+    <div className="container how-to-use-page">
       <h2>📘 How to Use Basketball AI</h2>
 
       <section className="card">
@@ -35,8 +35,6 @@ function HowToUse() {
         <h3>🔐 6. Privacy & Control</h3>
         <p>From the homepage, you can download all your data or permanently delete your profile at any time.</p>
       </section>
-
-   
     </div>
   );
 }
