@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import firebase_admin
 from firebase_admin import credentials, firestore
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, UTC
 from dateutil import parser
 import smtplib
 from email.mime.text import MIMEText
@@ -12,14 +12,19 @@ import time
 import threading
 import os
 from dotenv import load_dotenv
-from datetime import datetime, UTC
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from io import BytesIO
 from flask import send_file
 import random
 
+
 load_dotenv()
+
+firebase_key_path = os.getenv("FIREBASE_KEY_PATH")
+cred = credentials.Certificate(firebase_key_path)
+firebase_admin.initialize_app(cred)
+
 
 skill_drill_bank = {
     "shooting": {
@@ -84,10 +89,6 @@ chatbot_knowledge_base = {
     }
 }
 
-
-if not firebase_admin._apps:
-    cred = credentials.Certificate("basketball-c918a-firebase-adminsdk-fbsvc-f831bd2577.json")
-    firebase_admin.initialize_app(cred)
 
 db = firestore.client()
 
@@ -723,7 +724,10 @@ def enrich_routine(routine):
         ]
     return enriched
 def get_day_key(routine_start_date_str, mock_day_str=None):
-    start_date = datetime.strptime(routine_start_date_str, "%Y-%m-%d").date()
+    try:
+        start_date = datetime.strptime(routine_start_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return "Day 1"
     
     if not mock_day_str:
         today = date.today()
@@ -909,8 +913,6 @@ def submit_daily_results():
     email = data.get("email")
     results = data.get("results")  
     mock_day = data.get("mock_day") 
-
-    today = mock_day if mock_day else date.today().isoformat()  
 
     if not all([name, email, results]):
         return jsonify({"error": "Missing fields"}), 400
