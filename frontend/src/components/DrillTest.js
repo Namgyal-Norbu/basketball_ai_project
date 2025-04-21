@@ -13,6 +13,7 @@ function SubmitDrill() {
   const [wantsEmailReminders, setWantsEmailReminders] = useState(true);
   const name = user?.displayName?.toLowerCase();
 
+  //checks if player has already completed test by using email
   useEffect(() => {
     if (!user) return;
     const checkTestStatus = async () => {

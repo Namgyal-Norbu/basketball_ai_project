@@ -627,7 +627,7 @@ def generate_drill_test():
         "drills": enriched
     })
 
-# checks status of player through email and wether test has been completed 
+# checks status of player through email and whether test has been completed 
 @app.route("/player_status")
 def player_status():
     email = request.args.get("email")
@@ -745,7 +745,7 @@ def get_day_key(routine_start_date_str, mock_day_str=None):
     return f"Day {day_index}"
 
 
-#uses a players email to retreive their routine from the firebase database
+#uses a players email to retrieve their routine from the firebase database
 @app.route("/get_routine", methods=["GET"])
 def get_routine():
     email = request.args.get("email")
@@ -833,7 +833,7 @@ def submit_test_results():
         "badges": []
     }, new_xp=0, streak_count=1)
 
-    # updaing plahyers firebase data after completing tests drills depending on players choices
+    # updaing players firebase data after completing tests drills depending on players choices
     player_ref.update({
     "name": name,
     "email": email,
@@ -939,7 +939,7 @@ def submit_daily_results():
 
     weighted_score = calculate_weighted_score(results)
     xp_gained = int(weighted_score * 5)
-    # retreive the player document
+    # retrieve the player document
     player_ref = db.collection("players").document(email)
     player_doc = player_ref.get()
     skill_msg = "✅ No skill level check (new player)."
@@ -1061,7 +1061,7 @@ def chatbot_query():
         return jsonify({"response": "❓ Sorry, I don’t have information on that yet."}), 404
 
     return jsonify({"response": response})
-# checks wether a player has submitted there drills for today or not to prevent duplicates
+# checks whether a player has submitted there drills for today or not to prevent duplicates
 @app.route("/check_today_submission")
 def check_today_submission():
     email = request.args.get("email")
