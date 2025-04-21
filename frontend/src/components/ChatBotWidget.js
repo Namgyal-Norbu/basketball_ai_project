@@ -25,11 +25,15 @@ const subcategories = {
 
 function
  ChatBotWidget() {
+  // controls if window is open or close 
   const [open, setOpen] = useState(false);
+  //stores conversation messages 
   const [messages, setMessages] = useState([
     { sender: "bot", text: "Hey! I'm here to answer your basketball questions." },
   ]);
+  //sabes which category the chatbot is in 
   const [stage, setStage] = useState("category");
+
   const [selectedCategory, setSelectedCategory] = useState("");
 
   const scrollRef = useRef(null);
@@ -43,7 +47,7 @@ function
   const addMessage = (sender, text) => {
     setMessages((prev) => [...prev, { sender, text }]);
   };
-
+// when users select a category 
   const handleCategorySelect = (category) => {
     addMessage("user", category);
     setSelectedCategory(category);
@@ -58,7 +62,7 @@ function
     addMessage("user", sub);
     const user = auth.currentUser;
     const email = user?.email || null;
-
+//runs the app.route chatbot_query 
     try {
       const res = await fetch("http://127.0.0.1:5050/chatbot_query", {
         method: "POST",
@@ -130,7 +134,7 @@ function
           </div>
         </div>
       )}
-
+    
       <button className="chat-toggle" onClick={() => setOpen(!open)}>
         {open ? "✖" : "💬 Chat"}
       </button>

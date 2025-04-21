@@ -32,7 +32,6 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/drill-test" element={<DrillTest user={user} />} />
           <Route path="/submit-drills" element={<SubmitDrill user={user} />} /> 
-           
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/progress" element={<ProgressChart />} /> 
           <Route path="/how-to-use" element={<HowToUse />} />

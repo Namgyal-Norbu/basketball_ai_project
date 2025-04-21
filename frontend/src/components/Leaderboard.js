@@ -2,12 +2,14 @@ import React, { useEffect, useState } from "react";
 import "./styles.css";
 
 function Leaderboard() {
+
   const [leaders, setLeaders] = useState([]);
   const [topToday, setTopToday] = useState(null);
   const [topWeek, setTopWeek] = useState(null);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("xp"); 
 
+// using the app.route leaderboard to search players 
   useEffect(() => {
     fetch("http://127.0.0.1:5050/leaderboard")
       .then((res) => res.json())
@@ -22,7 +24,8 @@ function Leaderboard() {
         setLoading(false);
       });
   }, []);
-
+// sorting leaderboard depenedent on selected category 
+// a and b represent two value in the db being compared during the sort
   const sortedLeaders = [...leaders].sort((a, b) => {
     switch (category) {
       case "xp":
@@ -38,6 +41,7 @@ function Leaderboard() {
     }
   });
 
+  // return the different categories on the leaderboard 
   return (
     <div className="leaderboard-container">
       <h2 className="leaderboard-header">🏆 Leaderboard</h2>
@@ -49,6 +53,7 @@ function Leaderboard() {
           value={category}
           onChange={(e) => setCategory(e.target.value)}
         >
+          
           <option value="xp">Total XP</option>
           <option value="level">Level</option>
           <option value="average">Average Score</option>

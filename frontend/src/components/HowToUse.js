@@ -1,6 +1,7 @@
 import React from "react";
 import "./styles.css";
 
+// just a general page explaining how the website works
 function HowToUse() {
   return (
     <div className="container how-to-use-page">

@@ -12,6 +12,7 @@ function Home() {
 
   const xpToNextLevel = 500;
 
+  // export players data as pdf 
   const handleDownloadData = async () => {
     try {
       const res = await fetch(`http://127.0.0.1:5050/export_profile?email=${user.email}`);
@@ -26,6 +27,7 @@ function Home() {
     }
   };
 
+  //handles delete function 
   const handleDeleteProfile = async () => {
     const confirmed = window.confirm("Are you sure you want to permanently delete your profile?");
     if (!confirmed) return;
@@ -44,6 +46,7 @@ function Home() {
     }
   };
 
+  //retreive players stats and streaks when logged in 
   useEffect(() => {
     if (!user) return;
 
@@ -64,7 +67,7 @@ function Home() {
         setBadges(data.badges || []); 
       }
     };
-
+// counts daily streak of player
     const fetchDailyStreak = async () => {
       const ref = collection(db, "dailyResults");
       const q = query(ref, where("email", "==", user.email));

@@ -20,7 +20,7 @@ function Navbar() {
 
       const playerRef = doc(db, "players", firebaseUser.email);
       const playerSnap = await getDoc(playerRef);
-
+      // if the player does not exist we set there value in the firebase db, some values are given values which can later be updated such as skill_level or test_completed 
       if (!playerSnap.exists()) {
         await setDoc(playerRef, {
           name: firebaseUser.displayName,
@@ -56,11 +56,10 @@ function Navbar() {
       console.error("Logout failed:", err);
     }
   };
-
+// creating the navbar
   return (
     <nav className="navbar">
     <a href="/" className="logo">🏀 Basketball Routine Creator</a>
-  
     <div className="nav-links">
       <a href="/">Home</a>
       <a href="/drill-test">Daily Drills</a>
@@ -71,6 +70,7 @@ function Navbar() {
     </div>
   
     <div className="auth-section">
+  
       {user ? (
         <img
           src={user.photoURL}
@@ -87,6 +87,7 @@ function Navbar() {
         >
           {loading ? "Logging in..." : "Login"}
         </button>
+        // fetches the players pfp from there google profile or shows the login button depending on wether the user is logged in or not 
       )}
     </div>
   </nav>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "./styles.css";
 
+// sets state for submitting and displaying users daily drills
 function DrillTest({ user }) {
   const [todayDrills, setTodayDrills] = useState([]);
   const [results, setResults] = useState({});
@@ -13,6 +14,7 @@ function DrillTest({ user }) {
 
   const email = user?.email;
 
+  // checks wethers todays data has been submitted or not
   const checkSubmissionStatus = async () => {
     if (!email) return;
     try {
@@ -31,10 +33,11 @@ function DrillTest({ user }) {
     try {
       setLoading(true);
       setMessage("");
-  
+  // uses the players email to fetch there routine or mock day for testing 
       const res = await fetch(`http://localhost:5050/get_routine?email=${email}&mock_day=${mockDay}`);
       const data = await res.json();
   
+
       if (data.error || data.message) {
         setMessage(data.error || data.message);
         setTodayDrills([]);
@@ -42,11 +45,12 @@ function DrillTest({ user }) {
         return;
       }
   
+      //display todays drills and label showing day number 
       const todayRoutine = data.drills || [];
       setTodayDrills(todayRoutine);
       setRoutineDayLabel(`Day ${data.day.split(" ")[1]} (from ${mockDay})`);
 
-  
+  //prepare blank results input for each drill 
       const initialResults = {};
       todayRoutine.forEach((drill) => {
         initialResults[drill.name] = "";
@@ -60,7 +64,7 @@ function DrillTest({ user }) {
     }
   };
   
-
+// used when email or mockday chamges
   useEffect(() => {
     if (email) {
       loadTodayDrills();
@@ -68,10 +72,11 @@ function DrillTest({ user }) {
     }
   }, [email, mockDay]);
 
+  // helps submits results 
   const handleResultSubmit = async () => {
     const allFilled = Object.values(results).every(val => val !== "" && !isNaN(val));
     if (!allFilled) {
-      setMessage("🚫 Please enter a score for each drill.");
+      setMessage("🚫 Please enter a score for each drill."); // ensures a score for each drill has been entered 
       return;
     }
 
@@ -80,6 +85,7 @@ function DrillTest({ user }) {
       formattedResults[drillName] = Number(value);
     });
 
+    //submit results to backend
     try {
       const res = await fetch("http://localhost:5050/submit_daily_results", {
         method: "POST",
@@ -106,12 +112,14 @@ function DrillTest({ user }) {
     }
   };
 
+  // present the user with his daily drills
   return (
     <div className="container">
       <h2>📅 Today's Routine {routineDayLabel && `(${routineDayLabel})`}</h2>
 
       {user ? (
         <>
+        {/* Mock day input */ }
           <p><strong>Welcome,</strong> {user.displayName}</p>
           <input
             type="text"
@@ -125,6 +133,8 @@ function DrillTest({ user }) {
             <p>⏳ Loading drills...</p>
           ) : todayDrills.length > 0 ? (
             <>
+
+            {/* display each drill and mapping drill with right rep and descriptions */}
               <div className="form-section">
                 {todayDrills.map((drill, idx) => (
                   <div key={idx} className="drill-card enhanced-drill-card">
@@ -156,7 +166,7 @@ function DrillTest({ user }) {
                   </div>
                 ))}
               </div>
-
+                {/* submits drills button*/}
               <button
                 onClick={handleResultSubmit}
                 disabled={submitted}

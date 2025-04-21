@@ -30,6 +30,7 @@ function SubmitDrill() {
     checkTestStatus();
   }, [user]);
 
+  // calling the backend app.route generating the drill test 
   const fetchTestDrills = async () => {
     try {
       const res = await fetch("http://127.0.0.1:5050/generate_drill_test", {
@@ -58,27 +59,31 @@ function SubmitDrill() {
     }
   };
 
+ // update drill score after user input 
   const handleChange = (key, value) => {
     setResults(prev => ({ ...prev, [key]: value }));
   };
 
+//submit drill score and player preference 
   const handleSubmit = async () => {
+
+// ensure all inputs are filled 
     const allFilled = Object.values(results).every(val => val !== "" && !isNaN(val));
     if (!allFilled) {
       setMessage("🚫 Please complete all drill scores before submitting.");
       return;
     }
-
     const formattedResults = {};
     for (const drill in results) {
       formattedResults[drill] = Number(results[drill]) || 0;
     }
-
+// runs the app.route submit_test_results
     try {
       const res = await fetch("http://127.0.0.1:5050/submit_test_results", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          // collects the following information from the user
           name,
           email: user.email,
           results: formattedResults,

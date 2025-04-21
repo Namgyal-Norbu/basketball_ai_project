@@ -22,6 +22,7 @@ function ProgressChart() {
   const [drillToSkill, setDrillToSkill] = useState({});
   const [selectedSkill, setSelectedSkill] = useState("general");
 
+  //fetch skill drill bank from backend and map drills to skill categories 
   useEffect(() => {
     const fetchSkillDrillBank = async () => {
       try {
@@ -46,7 +47,7 @@ function ProgressChart() {
     fetchSkillDrillBank();
   }, []);
 
-
+// fetch drill results for player then group by skill and date 
   useEffect(() => {
     const fetchResults = async () => {
       if (!user || Object.keys(drillToSkill).length === 0) return;
@@ -92,8 +93,8 @@ function ProgressChart() {
       });
 
       const chartsData = {};
-
-      
+    
+  // got help from AI on this part  
       const generalDates = Object.keys(generalData).sort((a, b) => new Date(a) - new Date(b));
       const generalAverages = generalDates.map(date => {
         const values = generalData[date];
@@ -114,7 +115,6 @@ function ProgressChart() {
         ],
       };
 
-     
       for (const [skill, dateMap] of Object.entries(skillData)) {
         const dates = Object.keys(dateMap).sort((a, b) => new Date(a) - new Date(b));
         const averages = dates.map(date => {
