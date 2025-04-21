@@ -4,7 +4,6 @@ import Navbar from "./components/Navbar";
 import Home from "./components/Home";
 import DrillTest from "./components/DailyDrills.js";
 import SubmitDrill from "./components/DrillTest.js";
-import DailyRoutine from "./components/DailyRoutine";
 import { useUser } from "./components/UserContext"; 
 import Leaderboard from "./components/Leaderboard";
 import ProgressChart from "./components/ProgressChart";
@@ -33,7 +32,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/drill-test" element={<DrillTest user={user} />} />
           <Route path="/submit-drills" element={<SubmitDrill user={user} />} /> 
-          <Route path="/routine" element={<DailyRoutine user={user} />} />     
+           
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/progress" element={<ProgressChart />} /> 
           <Route path="/how-to-use" element={<HowToUse />} />

@@ -61,7 +61,7 @@ function Home() {
 
         setXp(xpInCurrentLevel);
         setLevel(playerLevel);
-        setBadges(data.badges || []); // ✅ Pull badges directly from backend
+        setBadges(data.badges || []); 
       }
     };
 

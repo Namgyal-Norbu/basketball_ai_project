@@ -66,7 +66,7 @@ function DrillTest({ user }) {
       loadTodayDrills();
       checkSubmissionStatus();
     }
-  }, [email, mockDay]); // re-fetch when mockDay changes
+  }, [email, mockDay]);
 
   const handleResultSubmit = async () => {
     const allFilled = Object.values(results).every(val => val !== "" && !isNaN(val));

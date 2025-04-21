@@ -22,7 +22,6 @@ function ProgressChart() {
   const [drillToSkill, setDrillToSkill] = useState({});
   const [selectedSkill, setSelectedSkill] = useState("general");
 
-  // 🧠 Fetch skill_drill_bank from backend
   useEffect(() => {
     const fetchSkillDrillBank = async () => {
       try {
@@ -47,7 +46,7 @@ function ProgressChart() {
     fetchSkillDrillBank();
   }, []);
 
-  // 🧠 Fetch and organize results by skill
+
   useEffect(() => {
     const fetchResults = async () => {
       if (!user || Object.keys(drillToSkill).length === 0) return;
@@ -81,7 +80,7 @@ function ProgressChart() {
           const numericScore = Number(score);
           skillData[skill][formattedDate].push(numericScore);
 
-          // General stats
+      
           total += numericScore;
           count += 1;
         }
@@ -94,7 +93,7 @@ function ProgressChart() {
 
       const chartsData = {};
 
-      // General chart
+      
       const generalDates = Object.keys(generalData).sort((a, b) => new Date(a) - new Date(b));
       const generalAverages = generalDates.map(date => {
         const values = generalData[date];
@@ -115,7 +114,7 @@ function ProgressChart() {
         ],
       };
 
-      // Skill-specific charts
+     
       for (const [skill, dateMap] of Object.entries(skillData)) {
         const dates = Object.keys(dateMap).sort((a, b) => new Date(a) - new Date(b));
         const averages = dates.map(date => {

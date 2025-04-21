@@ -17,12 +17,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from io import BytesIO
 from flask import send_file
-from flask_cors import cross_origin
 import random
-import json
-from flask import Response
-
-
 
 load_dotenv()
 
@@ -61,12 +56,6 @@ skill_drill_bank = {
 }
 
 
-faq_knowledge_base = {
-    "how do I improve my shooting?": "Practice form shooting daily and focus on footwork.",
-    "what's a good drill for dribbling?": "Try the cone dribble weave or 2-ball dribble drill.",
-    "how often should I train?": "Ideally, train 5 days a week for 45-60 minutes per session.",
-    "how is my skill level calculated?": "It's based on your average score during the test drills."
-}
 chatbot_knowledge_base = {
     "📋 Daily Drills": {
         "todaysdrills": "Here are your drills for today! 💪 Check your dashboard or ask for details.",
@@ -193,33 +182,6 @@ def send_email_reminder(to_email, subject, player_name):
     
 app = Flask(__name__)
 CORS(app) 
-
-
-
-
-@app.route("/faq_manual", methods=["POST"])
-def faq_manual_bot():
-    data = request.json
-    user_msg = data.get("message", "").lower()
-
-    faq_map = {
-      "shooting accuracy": "Try focusing on form shooting daily, and track your consistency.",
-    "beginner drills": "Form shooting, stationary dribbling, and layup lines are great for beginners.",
-    "daily drills": "We recommend 3 drills per day for consistent progress.",
-    "xp system": "You earn XP based on the total score of your drills. More effort = more XP!",
-    "level up": "Your routine adjusts based on your new skill level to keep things challenging.",
-    "dribbling drill": "Try the cone dribble weave or 2-ball dribble drill.",
-    "drill for dribbling": "Try the Figure 8 Dribbling Drill or Stationary Crossovers."
-}
-    
-
-    for keyword, answer in faq_map.items():
-        if keyword in user_msg:
-            return jsonify({"response": answer})
-    
-    return jsonify({"response": "🤔 I'm not sure about that. Try asking about drills, XP, or leveling up."})
-
-
 
 @app.route("/skill_drill_bank", methods=["GET"])
 def get_skill_drill_bank():
@@ -351,15 +313,6 @@ drill_details = {
             "- Stay low and tight with the ball"
         )
     },
-    "Cross Over Dribble and Finish": {
-        "reps": "10 reps",
-        "description": (
-            "10 point per successful rep:\n"
-            "- Execute crossover smoothly\n"
-            "- Maintain control while finishing at the rim\n"
-            "- Use both hands equally"
-        )
-    },
 
     "Hesistation Dribble And Finish": {
         "reps": "10 reps",
@@ -436,7 +389,6 @@ drill_details = {
         )
     },
 
-    # 🟠 Intermediate Finishing
     "Floaters": {
         "reps": "10 reps",
         "description": (
@@ -629,8 +581,8 @@ drill_details = {
 }
 
 
-@app.route("/generate_drill_test", methods=["POST", "OPTIONS"])
-@cross_origin(origins="http://localhost:3000")
+@app.route("/generate_drill_test", methods=["POST"])
+
 def generate_drill_test():
     data = request.json
     name = data.get("name")
@@ -646,7 +598,7 @@ def generate_drill_test():
         "test_completed": False
     }, merge=True)
 
-    # Basic test drills
+
     test_drills = {
         "shooting": ["Free Throws"],
         "ball_handling": ["Cross Over Dribble and Finish"],
@@ -655,7 +607,7 @@ def generate_drill_test():
         "footwork": ["Jump Stops"]
     }
 
-    # Return enriched drill data
+
     enriched = {}
     for skill, drills in test_drills.items():
         enriched[skill] = [{
@@ -684,37 +636,6 @@ def player_status():
         "test_completed": doc.to_dict().get("test_completed", False)
     })
 
-@app.route("/assess_skill_weighted", methods=["POST"])
-@cross_origin()
-def assess_skill_weighted():
-    print("🎯 POST request received for /assess_skill_weighted")
-    data = request.get_json()
-    weights = {
-        "shooting": 0.274,
-        "ball_handling": 0.267,
-        "defense": 0.219,
-        "finishing": 0.137,
-        "footwork": 0.104
-    }
-
-    weighted_score = 0
-    missing_keys = []
-
-    for skill, weight in weights.items():
-        if skill not in data:
-            missing_keys.append(skill)
-            continue
-        weighted_score += data[skill] * weight
-
-    if missing_keys:
-        return jsonify({
-            "error": f"Missing required fields: {', '.join(missing_keys)}"
-        }), 400
-
-    return jsonify({
-        "weighted_score": round(weighted_score, 2),
-        "message": f"🎯 Weighted performance score: {round(weighted_score, 2)}"
-    })
 
 def check_skill_change_recent_submissions(email):
     player_ref = db.collection("players").document(email)
@@ -1006,11 +927,8 @@ def submit_daily_results():
     weighted_score = calculate_weighted_score(results)
     xp_gained = int(weighted_score * 5)
 
-    # Update player profile
     player_ref = db.collection("players").document(email)
     player_doc = player_ref.get()
-
-    # Default response
     skill_msg = "✅ No skill level check (new player)."
     updated_badge_list = []
     
@@ -1070,34 +988,7 @@ def submit_daily_results():
         "xp_gained": xp_gained,
         "weighted_score": weighted_score,
         "skill_update": skill_msg
-}), 200
-
-@app.route("/chatbot_category", methods=["POST"])
-def chatbot_category():
-    data = request.json
-    email = data.get("email")
-    category = data.get("category")
-    question = data.get("question", "").lower()
-
-    if not email or not category:
-        return jsonify({"response": "❌ Missing email or category"}), 400
-
-    if category == "📋 Daily Drills":
-        return handle_daily_drills(email)
-    elif category == "📈 Player Progress":
-        return handle_progress(email)
-    elif category == "🎖️ Achievements & Badges":
-        return handle_badges(email)
-    elif category == "🎯 Leveling & XP":
-        return jsonify({"response": "🏀 You earn XP from drills. Every 500 XP = 1 level."})
-    elif category == "📅 Training Schedule":
-        return jsonify({"response": "🗓️ Try to train 5–6 days a week for best results."})
-    elif category == "🏆 Leaderboard Info":
-        return jsonify({"response": "💡 The leaderboard ranks players based on XP and performance consistency."})
-    elif category == "🛠️ Account & Settings":
-        return jsonify({"response": "You can export or delete your profile in the settings section."})
-    else:
-        return jsonify({"response": "🤔 I'm not sure how to help with that category."}) 
+}), 200 
 
 @app.route("/chatbot_query", methods=["POST"])
 def chatbot_query():
@@ -1129,7 +1020,7 @@ def chatbot_query():
             return jsonify({"response": f"🏅 You’ve earned: {', '.join(badges) if badges else 'no badges yet.'}"})
 
         if normalized_sub in ["todaysdrills"]:
-            # Don't show drills if already submitted today
+           
             if player.get("last_submission_date") == today_iso:
                 return jsonify({
                     "response": "✅ You've already completed today's drills. Come back tomorrow for more!"
@@ -1146,7 +1037,7 @@ def chatbot_query():
                 "response": f"📋 Your drills for today ({day_key}) are: {', '.join(drill_names) if drill_names else 'No drills found.'}"
             })
 
-    # Fallback to static responses if no personalized query matched
+
     category_map = chatbot_knowledge_base.get(category)
     if not category_map:
         return jsonify({"response": "❌ Unknown category."}), 404
@@ -1160,8 +1051,7 @@ def chatbot_query():
 @app.route("/check_today_submission")
 def check_today_submission():
     email = request.args.get("email")
-    mock_day = request.args.get("mock_day")  # Optional for testing
-
+    mock_day = request.args.get("mock_day")  
     if not email:
         return jsonify({"error": "Missing email"}), 400
 
@@ -1351,93 +1241,6 @@ def export_profile():
     except Exception as e:
         return jsonify({"error": f"Export failed: {str(e)}"}), 500
 
-@app.route('/export_player_data')
-def export_player_data():
-    name = request.args.get('name')
-    email = request.args.get("email")
-    
-    if not name:
-        return jsonify({"error": "Missing player name"}), 400
-
-    player_ref = db.collection("players").document(email)
-    player_doc = player_ref.get()
-
-    if not player_doc.exists:
-        return jsonify({"error": "Player not found"}), 404
-
-    data = player_doc.to_dict()
-
-    daily_results = db.collection("dailyResults").where("email", "==", data.get("email")).stream()
-    data["daily_results"] = [doc.to_dict() for doc in daily_results]
-
-    json_data = json.dumps(data, indent=2)
-    return Response(
-        json_data,
-        mimetype='application/json',
-        headers={"Content-Disposition": f"attachment;filename={name}_data.json"}
-    )
-
-@app.route("/player_question", methods=["POST"])
-def player_question():
-    data = request.json
-    email = data.get("email")
-    question = data.get("question", "").lower()
-
-    if not email or not question:
-        return jsonify({"response": "❌ Email and question are required."}), 400
-
-    player_ref = db.collection("players").document(email)
-    player_doc = player_ref.get()
-
-    if not player_doc.exists:
-        return jsonify({"response": "❌ Player not found."}), 404
-
-    player = player_doc.to_dict()
-    today = datetime.utcnow().strftime("%A")
-    result_id = f"{email}_{today}"
-    result_doc = db.collection("dailyResults").document(result_id).get()
-
-   
-    if "xp" in question:
-        return jsonify({"response": f"💪 You currently have {player.get('xp', 0)} XP."})
-
-    if "level" in question or "skill" in question:
-        return jsonify({"response": f"🧠 Your current skill level is {player.get('skill_level', 'Unknown')}."})
-
-    if "badge" in question:
-        badges = player.get("badges", [])
-        return jsonify({"response": f"🏅 You’ve earned: {', '.join(badges) if badges else 'no badges yet.'}"})
-
-    if "drill" in question and "today" in question:
-        routine_dict = player.get("routine", {})
-        start_date = player.get("routine_start_date")
-        day_key = get_day_key(start_date)
-        drills = routine_dict.get(day_key, [])
-        return jsonify({"response": f"📋 Your drills for today ({day_key}) are: {', '.join(drills) if drills else 'No drills found.'}"})
-
-    if "result" in question or "logged" in question:
-        if result_doc.exists:
-            scores = result_doc.to_dict().get("results", {})
-            response = "\n".join([f"• {k}: {v}" for k, v in scores.items()])
-            return jsonify({"response": f"📈 Your logged results for {today}:\n{response}"})
-        else:
-            return jsonify({"response": f"🕐 You haven’t submitted any results for today ({today})."})
-
-    return jsonify({"response": "🤔 I didn’t understand that. Try asking about XP, level, badges, drills, or results."})
-
-@app.route("/assess_player", methods=["POST"])
-def assess_and_add_player():
-    data = request.json
-    name = data.get("name")
-    shooting = data.get("shooting_accuracy")
-    dribbling = data.get("dribbling_skill")
-    finishing = data.get("finishing_skill")
-
-    if None in [name, shooting, dribbling, finishing]:
-        return jsonify({"error": "Missing required fields"}), 400
-
-    result = add_new_player(name,shooting, dribbling, finishing)
-    return jsonify(result), 201
 
 def send_daily_reminders():
     players_ref = db.collection("players").stream()

@@ -87,7 +87,6 @@ function Leaderboard() {
             <p>No data available yet.</p>
           )}
   
-          {/* Top Performers */}
           <div className="top-performers" style={{ marginTop: "30px" }}>
             {topToday && (
               <div className="card">
