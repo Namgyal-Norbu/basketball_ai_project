@@ -21,11 +21,12 @@ import random
 
 load_dotenv()
 
+# hiding firebase key to ensure security
 firebase_key_path = os.getenv("FIREBASE_KEY_PATH")
 cred = credentials.Certificate(firebase_key_path)
 firebase_admin.initialize_app(cred)
 
-
+#Naming the drills first and assigning a skill level 
 skill_drill_bank = {
     "shooting": {
         "Beginner": ["Form Shooting Without Jumping", "Bank Shots"],
@@ -60,156 +61,7 @@ skill_drill_bank = {
    
 }
 
-
-chatbot_knowledge_base = {
-    "📋 Daily Drills": {
-        "todaysdrills": "Here are your drills for today! 💪 Check your dashboard or ask for details.",
-        "howmanydrillsshouldidodaily": "Aim for 3 drills a day for steady progress."
-    },
-    "📈 Player Progress": {
-        "xp": "You earn XP for each drill based on performance.",
-        "skilllevel": "Your skill level updates automatically based on your recent performance.",
-        "progressgraph": "You can view your drill progress in a weekly chart on your dashboard."
-    },
-    "🎖️ Achievements & Badges": {
-        "mybadges": "Badges are earned by completing drills, XP milestones, or special achievements!"
-    },
-    "🎯 Leveling & XP": {
-        "howdoiearnxp": "You gain 5 XP per point scored in a drill."
-    },
-    "📅 Training Schedule": {
-        "recommendedweeklyroutine": "Train 5–6 days a week for best improvement. Rest is important too!"
-    },
-    "🏆 Leaderboard Info": {
-        "topplayers": "Top players are ranked by XP and consistency. Visit the leaderboard page to see the rankings."
-    },
-    "🛠️ Account & Settings": {
-        "deletemyprofile": "You can delete your profile from the settings page. This will erase all your data.",
-        "exportmydata": "Use the Export button in your settings to download your full training history."
-    }
-}
-
-
-db = firestore.client()
-
-def match_day_key_from_label(routine, submitted_day):
-    for key in routine.keys():
-        if submitted_day.lower() in key.lower():
-            return key
-    return None
-
-def build_drill_to_skill_map():
-    mapping = {}
-    for skill, levels in skill_drill_bank.items():
-        for drill_list in levels.values():
-            for drill in drill_list:
-                mapping[drill] = skill
-    return mapping
-drill_to_skill = build_drill_to_skill_map()
-
-def generate_skill_based_routine_by_level(skill_level, days=14):
-    routine = {}
-    
-    skill_categories = list(skill_drill_bank.keys())
-
-    for i in range(days):
-        day_key = f"Day {i+1}"
-        drills_for_day = []
-
-        for skill in skill_categories:
-            drills_by_level = skill_drill_bank[skill].get(skill_level, [])
-            if drills_by_level:
-                selected_drill = random.choice(drills_by_level)
-                drills_for_day.append(selected_drill)
-
-        routine[day_key] = drills_for_day
-
-    return routine
-
-
-def send_email_reminder(to_email, subject, player_name):
-    from_email = os.getenv("GMAIL_USER")
-    password = os.getenv("GMAIL_PASS")
-
-    today_day = datetime.utcnow().strftime("%A")
-    player_doc = db.collection("players").document(to_email).get()
-    if not player_doc.exists:
-        return False
-
-    routine = player_doc.to_dict().get("routine", {})
-    start_date = player_doc.to_dict().get("routine_start_date")
-    matching_day_key = get_day_key(start_date)
-
-
-    drills_today = routine.get(matching_day_key, ["No drills assigned."])   
-
-    drills_list_html = "".join(
-    f"<li>{drill['name'] if isinstance(drill, dict) else drill}</li>" for drill in drills_today
-)
-
-
-    msg = MIMEMultipart("alternative")
-    msg["From"] = from_email
-    msg["To"] = to_email
-    msg["Subject"] = subject
-
-    html = f"""
-    <html>
-      <body style="font-family: Arial, sans-serif; padding: 10px;">
-        <h2 style="color: #4CAF50;">🏀 Hey {player_name.title()}, ready to train?</h2>
-        <p>Here's your drill lineup for <strong>{today_day}</strong>:</p>
-        <ul>
-          {drills_list_html}
-        </ul>
-        <p>Don't forget to log your scores in the app so you can keep leveling up! 💪</p>
-        <p style="margin-top: 20px;">– Your Basketball AI Coach</p>
-      </body>
-    </html>
-    """
-
-    msg.attach(MIMEText(html, "html"))
-
-    try:
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-        server.login(from_email, password)
-        server.sendmail(from_email, to_email, msg.as_string())
-        server.quit()
-        print(f"📬 Email sent to {to_email}")
-        return True
-    except Exception as e:
-        print(f"❌ Failed to send email: {e}")
-        return False
-    
-app = Flask(__name__)
-CORS(app) 
-
-@app.route("/skill_drill_bank", methods=["GET"])
-def get_skill_drill_bank():
-    return jsonify(skill_drill_bank)
-
-@app.route("/send_reminder", methods=["POST"])
-def send_reminder():
-    data = request.json
-    email = data.get("email")
-
-    if not email:
-        return jsonify({"error": "Missing email"}), 400
-
-    subject = "⏰ Time for your daily basketball drills!"
-    
-    player_doc = db.collection("players").document(email).get()
-    if not player_doc.exists:
-        return jsonify({"error": "Player not found"}), 404
-    name = player_doc.to_dict().get("name", "Player")
-    success = send_email_reminder(email, subject, name)
-
-
-    if success:
-        return jsonify({"message": "Reminder email sent."}), 200
-    else:
-        return jsonify({"error": "Failed to send reminder"}), 500
-
+#going into detail on each drill such as amount of reps and description for users to follow
 drill_details = {
     
     "Cross Over Dribble and Finish": {
@@ -582,8 +434,162 @@ drill_details = {
 }
 
 
-@app.route("/generate_drill_test", methods=["POST"])
+# basic answers for the chatbot 
+chatbot_knowledge_base = {
+    "📋 Daily Drills": {
+        "todaysdrills": "Here are your drills for today! 💪 Check your dashboard or ask for details.",
+        "howmanydrillsshouldidodaily": "Aim for 3 drills a day for steady progress."
+    },
+    "📈 Player Progress": {
+        "xp": "You earn XP for each drill based on performance.",
+        "skilllevel": "Your skill level updates automatically based on your recent performance.",
+        "progressgraph": "You can view your drill progress in a weekly chart on your dashboard."
+    },
+    "🎖️ Achievements & Badges": {
+        "mybadges": "Badges are earned by completing drills, XP milestones, or special achievements!"
+    },
+    "🎯 Leveling & XP": {
+        "howdoiearnxp": "You gain 5 XP per point scored in a drill."
+    },
+    "📅 Training Schedule": {
+        "recommendedweeklyroutine": "Train 5–6 days a week for best improvement. Rest is important too!"
+    },
+    "🏆 Leaderboard Info": {
+        "topplayers": "Top players are ranked by XP and consistency. Visit the leaderboard page to see the rankings."
+    },
+    "🛠️ Account & Settings": {
+        "deletemyprofile": "You can delete your profile from the settings page. This will erase all your data.",
+        "exportmydata": "Use the Export button in your settings to download your full training history."
+    }
+}
 
+
+db = firestore.client()
+
+#matches days to day name such as Monday = Day 1
+def match_day_key_from_label(routine, submitted_day):
+    for key in routine.keys():
+        if submitted_day.lower() in key.lower():
+            return key
+    return None
+# maps drill name to corresponding skill category
+def build_drill_to_skill_map():
+    mapping = {}
+    for skill, levels in skill_drill_bank.items():
+        for drill_list in levels.values():
+            for drill in drill_list:
+                mapping[drill] = skill 
+    return mapping
+drill_to_skill = build_drill_to_skill_map()
+
+# Created 14 day routine depending on skill level then picks drills from specifc skill level
+def generate_skill_based_routine_by_level(skill_level, days=14):
+    routine = {}
+    
+    skill_categories = list(skill_drill_bank.keys())
+
+    for i in range(days):
+        day_key = f"Day {i+1}"
+        drills_for_day = []
+
+        for skill in skill_categories:
+            drills_by_level = skill_drill_bank[skill].get(skill_level, [])
+            if drills_by_level:
+                selected_drill = random.choice(drills_by_level)
+                drills_for_day.append(selected_drill)
+
+        routine[day_key] = drills_for_day
+
+    return routine
+
+# generating a daily email reminder for users of what drills they've been assigned today using google smtp for this
+def send_email_reminder(to_email, subject, player_name):
+    from_email = os.getenv("GMAIL_USER")
+    password = os.getenv("GMAIL_PASS")
+
+    today_day = datetime.utcnow().strftime("%A")
+    player_doc = db.collection("players").document(to_email).get()
+    if not player_doc.exists:
+        return False
+
+    routine = player_doc.to_dict().get("routine", {})
+    start_date = player_doc.to_dict().get("routine_start_date")
+    matching_day_key = get_day_key(start_date)
+
+
+    drills_today = routine.get(matching_day_key, ["No drills assigned."])   
+
+    drills_list_html = "".join(
+    f"<li>{drill['name'] if isinstance(drill, dict) else drill}</li>" for drill in drills_today
+)
+
+    msg = MIMEMultipart("alternative")
+    msg["From"] = from_email
+    msg["To"] = to_email
+    msg["Subject"] = subject
+
+    # Creating the format of the email
+    html = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; padding: 10px;">
+        <h2 style="color: #4CAF50;">Hey {player_name.title()}, ready to train?</h2>
+        <p>Here's your drill lineup for <strong>{today_day}</strong>:</p>
+        <ul>
+          {drills_list_html}
+        </ul>
+        <p>Don't forget to log your scores in the app so you can keep leveling up! 💪</p>
+        <p style="margin-top: 20px;">– Your Basketball AI Coach</p>
+      </body>
+    </html>
+    """
+
+    msg.attach(MIMEText(html, "html"))
+
+    try:
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(from_email, password)
+        server.sendmail(from_email, to_email, msg.as_string())
+        server.quit()
+        print(f"📬 Email sent to {to_email}")
+        return True
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+        return False
+    
+app = Flask(__name__)
+CORS(app) 
+
+
+@app.route("/skill_drill_bank", methods=["GET"])
+def get_skill_drill_bank():
+    return jsonify(skill_drill_bank)
+
+# route which sends reminder to players emails
+@app.route("/send_reminder", methods=["POST"])
+def send_reminder():
+    data = request.json
+    email = data.get("email")
+
+    if not email:
+        return jsonify({"error": "Missing email"}), 400
+
+    subject = "Time for your daily basketball drills!"
+    
+    player_doc = db.collection("players").document(email).get()
+    if not player_doc.exists:
+        return jsonify({"error": "Player not found"}), 404
+    name = player_doc.to_dict().get("name", "Player")
+    success = send_email_reminder(email, subject, name)
+
+
+    if success:
+        return jsonify({"message": "Reminder email sent."}), 200
+    else:
+        return jsonify({"error": "Failed to send reminder"}), 500
+
+#collects players name and email then presents drills to players
+@app.route("/generate_drill_test", methods=["POST"])
 def generate_drill_test():
     data = request.json
     name = data.get("name")
@@ -608,7 +614,6 @@ def generate_drill_test():
         "footwork": ["Jump Stops"]
     }
 
-
     enriched = {}
     for skill, drills in test_drills.items():
         enriched[skill] = [{
@@ -622,7 +627,7 @@ def generate_drill_test():
         "drills": enriched
     })
 
-
+# checks status of player through email and wether test has been completed 
 @app.route("/player_status")
 def player_status():
     email = request.args.get("email")
@@ -637,7 +642,7 @@ def player_status():
         "test_completed": doc.to_dict().get("test_completed", False)
     })
 
-
+# checks recent performance of players drill submission determining regression or progression depending on overall score 
 def check_skill_change_recent_submissions(email):
     player_ref = db.collection("players").document(email)
     player_data = player_ref.get().to_dict()
@@ -649,7 +654,7 @@ def check_skill_change_recent_submissions(email):
     levels = ["Beginner", "Intermediate", "Advanced", "Professional"]
     current_index = levels.index(current_level)
 
-    # Get the last 3 submission entries by timestamp
+   
     recent_entries = (
         db.collection("dailyResults")
         .where("email", "==", email)
@@ -698,19 +703,19 @@ def check_skill_change_recent_submissions(email):
             "skill_level": new_level,
             "routine": updated_routine
         })
-
+    # checking if high days has been 3 days in a row then sending the player to the next level
     if high_days == 3 and current_index < len(levels) - 1:
         new_level = levels[current_index + 1]
         update_remaining_routine(new_level)
         return f"⬆️ Promoted to {new_level} after 3 great training days!"
-
+     ## checking if low days has been 3 days in a row then sending the player to the previous level
     if low_days == 3 and current_index > 0:
         new_level = levels[current_index - 1]
         update_remaining_routine(new_level)
         return f"⏬ Regressed to {new_level} after 3 poor training days."
-
+    
     return "✅ No skill level change needed."
-
+#takes the name of the drill and returns the description and reps from the drill details
 def enrich_routine(routine):
     enriched = {}
     for day, drills in routine.items():
@@ -723,6 +728,7 @@ def enrich_routine(routine):
             for drill in drills
         ]
     return enriched
+#figures out which days of the routine the player is on 
 def get_day_key(routine_start_date_str, mock_day_str=None):
     try:
         start_date = datetime.strptime(routine_start_date_str, "%Y-%m-%d").date()
@@ -739,6 +745,7 @@ def get_day_key(routine_start_date_str, mock_day_str=None):
     return f"Day {day_index}"
 
 
+#uses a players email to retreive their routine from the firebase database
 @app.route("/get_routine", methods=["GET"])
 def get_routine():
     email = request.args.get("email")
@@ -783,7 +790,7 @@ def get_routine():
         "day": day_key,
         "drills": enriched_drills
     })
-
+# takes test drill results and assigns a skill level depending on weighted score
 @app.route("/submit_test_results", methods=["POST"])
 def submit_test_results():
     data = request.json
@@ -826,6 +833,7 @@ def submit_test_results():
         "badges": []
     }, new_xp=0, streak_count=1)
 
+    # updaing plahyers firebase data after completing tests drills depending on players choices
     player_ref.update({
     "name": name,
     "email": email,
@@ -849,6 +857,8 @@ def submit_test_results():
         "weighted_score": round(weighted_score, 2)
     })
 
+
+# helps gamify website adding badges for each player depending on certain conditions
 def determine_badges(player_data, new_xp, streak_count):
     badges = set(player_data.get("badges", []))  
     total_drills = len(player_data.get("results", []))
@@ -878,7 +888,7 @@ def determine_badges(player_data, new_xp, streak_count):
 
     return list(badges)
 
-
+# weightage of each drill category
 def calculate_weighted_score(results):
     weights = {
         "shooting": 0.274,
@@ -906,6 +916,7 @@ def calculate_weighted_score(results):
 
     return round(weighted_score, 2)
 
+# takes a player daily drill results adds xp to player depending on drill results, updates badges sends all data to firebase
 @app.route("/submit_daily_results", methods=["POST"])
 def submit_daily_results():
     data = request.json
@@ -920,7 +931,7 @@ def submit_daily_results():
     today = mock_day if mock_day else date.today().isoformat()
     doc_id = f"{email}_{today}"
     result_ref = db.collection("dailyResults").document(doc_id)
-
+    # prevent duplicate submissions
     if result_ref.get().exists:
         return jsonify({
             "error": f"🚫 You've already submitted results for {today}."
@@ -928,7 +939,7 @@ def submit_daily_results():
 
     weighted_score = calculate_weighted_score(results)
     xp_gained = int(weighted_score * 5)
-
+    # retreive the player document
     player_ref = db.collection("players").document(email)
     player_doc = player_ref.get()
     skill_msg = "✅ No skill level check (new player)."
@@ -952,7 +963,7 @@ def submit_daily_results():
       
         raw_routine = generate_skill_based_routine_by_level(skill_level, days=14)
         routine = enrich_routine(raw_routine)
-
+        # update players data with inputted data.
         player_ref.update({
             "xp": current_xp + xp_gained,
             "results": new_results,
@@ -992,6 +1003,7 @@ def submit_daily_results():
         "skill_update": skill_msg
 }), 200 
 
+# takes information about the player from firebase and returns personalized answers regarding different topics
 @app.route("/chatbot_query", methods=["POST"])
 def chatbot_query():
     data = request.json
@@ -1006,17 +1018,17 @@ def chatbot_query():
         player_ref = db.collection("players").document(email)
         doc = player_ref.get()
         if not doc.exists:
-            return jsonify({"response": "❌ Player not found."}), 404
+            return jsonify({"response": "Player not found."}), 404
 
         player = doc.to_dict()
         today_iso = date.today().isoformat()
-
+        # returning player's xp 
         if normalized_sub in ["xp"]:
             return jsonify({"response": f"💪 You currently have {player.get('xp', 0)} XP."})
-
+        # returning player's skill level
         if normalized_sub in ["skilllevel", "level"]:
             return jsonify({"response": f"🧠 Your current skill level is {player.get('skill_level', 'Unknown')}."})
-
+        # returning player's badges
         if normalized_sub in ["badges", "mybadges"]:
             badges = player.get("badges", [])
             return jsonify({"response": f"🏅 You’ve earned: {', '.join(badges) if badges else 'no badges yet.'}"})
@@ -1032,7 +1044,7 @@ def chatbot_query():
             start_date = player.get("routine_start_date")
             day_key = get_day_key(start_date)
             drills = routine.get(day_key, [])
-
+            # for d in drills we loop through each instance to see if item is a drill we get the name field otherwise we convert it to a string
             drill_names = [d["name"] if isinstance(d, dict) else str(d) for d in drills]
 
             return jsonify({
@@ -1049,7 +1061,7 @@ def chatbot_query():
         return jsonify({"response": "❓ Sorry, I don’t have information on that yet."}), 404
 
     return jsonify({"response": response})
-
+# checks wether a player has submitted there drills for today or not to prevent duplicates
 @app.route("/check_today_submission")
 def check_today_submission():
     email = request.args.get("email")
@@ -1079,23 +1091,27 @@ def check_today_submission():
 
     return jsonify({"submitted": False})
 
+# returns leaderboard of players from different categories
 @app.route("/leaderboard", methods=["GET"])
 def leaderboard():
+    #reference to players and daily results collection
     players_ref = db.collection("players")
     results_ref = db.collection("dailyResults")
     players = []
     today = date.today()
+    # take start of current week
     week_start = today - timedelta(days=today.weekday())  
     top_today = None
     top_today_xp = 0
     top_week = None
     top_week_score = 0
-
+    #iterate through all players
     for doc in players_ref.stream():
         data = doc.to_dict()
+    # ensure only players who opted to leaderboard are shown
         if not data.get("show_on_leaderboard", False):
             continue
-
+    # fetch player data
         name = data.get("name", "Unknown")
         xp = data.get("xp", 0)
         level = (xp // 500) + 1
@@ -1107,14 +1123,14 @@ def leaderboard():
                 numeric_results.append(float(x))
             except ValueError:
                 continue
-
+    # calculate average score across all drills
         average_score = sum(numeric_results) / len(numeric_results) if numeric_results else 0
 
         day_query = results_ref.where("email", "==", data.get("email"))
         day_docs = day_query.stream()
         day_set = set()
         weekly_scores = []
-
+    # go through each daily result for each player
         for d in day_docs:
             result_data = d.to_dict()
             day_set.add(result_data.get("day"))
@@ -1139,12 +1155,12 @@ def leaderboard():
                         if ts_date == today and xp > top_today_xp:
                             top_today = {"name": name, "xp": xp}
                             top_today_xp = xp
-
+        # find players best score for the week 
         max_week_score = max(weekly_scores) if weekly_scores else 0
         if max_week_score > top_week_score:
             top_week = {"name": name, "xp": xp}
             top_week_score = max_week_score
-
+        #add player to the leaderboard
         players.append({
             "name": name,
             "average_score": average_score,
@@ -1162,6 +1178,7 @@ def leaderboard():
         "top_performer_week": top_week
     })
 
+# deleting users profile and data to address security concerns
 @app.route("/delete_profile", methods=["POST"])
 def delete_profile():
     data = request.json
@@ -1173,7 +1190,7 @@ def delete_profile():
 
     try:
         name = name.lower()  
-        print(f"🔍 Deleting player: {name}")
+        print(f"Deleting player: {name}")
 
         email = data.get("email")
         db.collection("players").document(email).delete()
@@ -1189,6 +1206,7 @@ def delete_profile():
         print(f"❌ Error during deletion: {e}")
         return jsonify({"error": f"Failed to delete profile: {str(e)}"}), 500
 
+#exports players data as a pdf 
 @app.route("/export_profile", methods=["GET"])
 def export_profile():
     email = request.args.get("email")
@@ -1196,6 +1214,7 @@ def export_profile():
         return jsonify({"error": "Missing player email"}), 400
 
     try:
+        # fetch players data from from firestore using email
         doc = db.collection("players").document(email).get()
         profile = doc.to_dict()
         results = db.collection("dailyResults").where("email", "==", email).stream()
@@ -1203,8 +1222,9 @@ def export_profile():
         buffer = BytesIO()
         c = canvas.Canvas(buffer, pagesize=letter)
         c.setFont("Helvetica", 12)
-
+        #starting vertical position of pdf
         y = 750
+        # writing info on players
         c.drawString(30, y, f"Player Profile Export for {profile.get('name', 'Unknown')}")
         y -= 20
         c.drawString(30, y, f"Email: {email}")
@@ -1217,6 +1237,7 @@ def export_profile():
         y -= 20
 
         for entry in result_data:
+            #start new page if space runs out 
             if y < 60:
                 c.showPage()
                 c.setFont("Helvetica", 12)
@@ -1232,7 +1253,7 @@ def export_profile():
 
         c.save()
         buffer.seek(0)
-
+        # return pdf as a download to the user
         return send_file(
             buffer,
             as_attachment=True,

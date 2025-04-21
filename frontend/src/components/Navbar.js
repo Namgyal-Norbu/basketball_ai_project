@@ -34,7 +34,7 @@ function Navbar() {
         });
         console.log("✅ Created new player profile");
       } else {
-        // Optional: Update login time
+       
         await setDoc(playerRef, {
           last_login: new Date().toISOString()
         }, { merge: true });

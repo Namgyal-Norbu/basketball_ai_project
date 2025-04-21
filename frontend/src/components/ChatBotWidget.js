@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./ChatBotWidget.css";
 import { auth } from "../firebaseConfig";
-
+ 
+// setting different categories
 const categories = [
   "📋 Daily Drills",
   "📈 Player Progress",
@@ -11,7 +12,7 @@ const categories = [
   "🏆 Leaderboard Info",
   "🛠️ Account & Settings",
 ];
-
+// subcategories
 const subcategories = {
   "📋 Daily Drills": ["Today's Drills"],
   "📈 Player Progress": ["XP", "Skill Level", "Progress Graph"],
@@ -22,7 +23,8 @@ const subcategories = {
   "🛠️ Account & Settings": ["Delete My Profile", "Export My Data"],
 };
 
-function ChatBotWidget() {
+function
+ ChatBotWidget() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     { sender: "bot", text: "Hey! I'm here to answer your basketball questions." },
