@@ -1,0 +1,15 @@
+﻿Precursors 
+1. Install Python from https://www.python.org/downloads/
+2. Install Node.js from https://nodejs.org/
+
+
+To run backend 
+1. CD into the backend folder 
+2. Run: pip install “Flask firebase-admin python-dotenv schedule python-dateutil reportlab”
+3. Run “python api.py”
+4. Server should now be running on http://localhost:5050
+To run frontend 
+1. CD into the frontend folder 
+2. Run: “npm install”
+3. Run: “npm start”
+4. Server should now be running on http://localhost:3000
